@@ -1,0 +1,60 @@
+name: CI/CD Frontend - NeuroAlert
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run type-check || npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+
+      - name: Security audit
+        run: npm audit --audit-level=high || true
+
+  deploy-dev:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+
+    steps:
+      - name: Deploy to Render (DEV)
+        run: |
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_DEV }}"
+          echo "Deploy DEV triggered"
+
+  deploy-prod:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy to Render (PROD)
+        run: |
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_PROD }}"
+          echo "Deploy PROD triggered"
