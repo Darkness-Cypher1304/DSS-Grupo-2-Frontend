@@ -1,5 +1,5 @@
 name: CI/CD Frontend - NeuroAlert
-// Test CI/CD
+# Test CI/CD
 on:
   push:
     branches: [develop, main]
