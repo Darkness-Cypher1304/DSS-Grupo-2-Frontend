@@ -1,13 +1,15 @@
 name: CI/CD Frontend - NeuroAlert
-# Test CI/CD
+
 on:
   push:
-    branches: [develop, main]
+    branches: [main]
+
   pull_request:
-    branches: [develop, main]
+    branches: [main]
 
 jobs:
   build-and-test:
+    name: Build & Test
     runs-on: ubuntu-latest
 
     steps:
@@ -34,24 +36,70 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
-      - name: Security audit
-        run: npm audit --audit-level=high || true
-
-  deploy-dev:
+  security-scan:
+    name: Security Scan
     needs: build-and-test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop'
 
     steps:
-      - name: Deploy to Render (DEV)
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Security audit
+        run: npm audit --audit-level=high
+
+  deploy-dev:
+    if: github.event_name == 'push'
+    name: Deploy a Desarrollo
+    needs: security-scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy DEV
         run: |
           curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_DEV }}"
           echo "Deploy DEV triggered"
 
-  deploy-prod:
-    needs: build-and-test
+      - name: Esperar inicio de despliegue
+        run: sleep 30
+
+  smoke-test:
+    if: github.event_name == 'push'
+    name: Smoke Test en Dev
+    needs: deploy-dev
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Verificar que Dev responde
+        run: |
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            STATUS=$(curl -L -s -o /dev/null -w "%{http_code}" "${{ secrets.DEV_URL }}")
+
+            if [[ $STATUS -eq 200 ]]; then
+              echo "Dev responde correctamente"
+              exit 0
+            fi
+
+            echo "Intento $i fallido (HTTP $STATUS)"
+            sleep 15
+          done
+
+          echo "Dev no respondió correctamente"
+          exit 1
+
+  deploy-prod:
+    if: github.event_name == 'push'
+    name: Deploy a Producción
+    needs: smoke-test
+    runs-on: ubuntu-latest
 
     steps:
       - name: Deploy to Render (PROD)
