@@ -19,7 +19,7 @@
   }
 
   body {
-    @apply bg-bone-50 text-ink font-sans;
+    @apply bg-yellow-200 text-ink font-sans;
     font-feature-settings: 'ss01', 'cv11';
   }
 
