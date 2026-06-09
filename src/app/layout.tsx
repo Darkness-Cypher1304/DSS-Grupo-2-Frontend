@@ -23,11 +23,32 @@ export const metadata: Metadata = {
   },
 };
 
+// Etiqueta de build visible: sirve para OBSERVAR que un cambio mergeado en
+// GitHub llegó al sitio en vivo tras el deploy. Bumpea este valor por release.
+const BUILD_TAG = 'v1.1 · demo observable';
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es-PE" suppressHydrationWarning>
       <body className="antialiased">
         <Providers>{children}</Providers>
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            bottom: 8,
+            right: 8,
+            zIndex: 50,
+            fontSize: 11,
+            padding: '2px 8px',
+            borderRadius: 6,
+            background: 'rgba(0,0,0,0.6)',
+            color: '#fff',
+            pointerEvents: 'none',
+          }}
+        >
+          NeuroAlert · {BUILD_TAG}
+        </div>
       </body>
     </html>
   );
