@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import axios from 'axios';
+import axios, {
+  type AxiosAdapter,
+  type AxiosResponse,
+  type InternalAxiosRequestConfig,
+} from 'axios';
 
 import {
   api,
@@ -142,14 +146,17 @@ describe('api-client · interceptores (Bearer + refresh en 401)', () => {
   it('el interceptor de request añade Authorization cuando hay token', async () => {
     // ARRANGE
     setAccessToken('tok-123');
-    const adapter = jest.fn(async (config: any) => ({
-      data: { data: 'ok' },
-      status: 200,
-      statusText: 'OK',
-      headers: {},
-      config,
-    }));
-    api.defaults.adapter = adapter as never;
+    const adapter = jest.fn(
+      async (config: InternalAxiosRequestConfig): Promise<AxiosResponse> =>
+        ({
+          data: { data: 'ok' },
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config,
+        }) as AxiosResponse,
+    );
+    api.defaults.adapter = adapter as AxiosAdapter;
 
     try {
       // ACT
@@ -157,8 +164,9 @@ describe('api-client · interceptores (Bearer + refresh en 401)', () => {
 
       // ASSERT
       expect(result).toBe('ok');
-      const enviado: any = adapter.mock.calls[0][0];
-      expect(enviado.headers.Authorization).toBe('Bearer tok-123');
+      const enviado = adapter.mock.calls[0][0];
+      const headers = enviado.headers as unknown as Record<string, unknown>;
+      expect(headers.Authorization).toBe('Bearer tok-123');
     } finally {
       api.defaults.adapter = adapterOriginal;
     }
@@ -166,22 +174,26 @@ describe('api-client · interceptores (Bearer + refresh en 401)', () => {
 
   it('sin token NO añade el header Authorization', async () => {
     // ARRANGE (sin setAccessToken -> null por beforeEach)
-    const adapter = jest.fn(async (config: any) => ({
-      data: { data: 'ok' },
-      status: 200,
-      statusText: 'OK',
-      headers: {},
-      config,
-    }));
-    api.defaults.adapter = adapter as never;
+    const adapter = jest.fn(
+      async (config: InternalAxiosRequestConfig): Promise<AxiosResponse> =>
+        ({
+          data: { data: 'ok' },
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config,
+        }) as AxiosResponse,
+    );
+    api.defaults.adapter = adapter as AxiosAdapter;
 
     try {
       // ACT
       await apiGet('/publico');
 
       // ASSERT
-      const enviado: any = adapter.mock.calls[0][0];
-      expect(enviado.headers?.Authorization).toBeUndefined();
+      const enviado = adapter.mock.calls[0][0];
+      const headers = enviado.headers as unknown as Record<string, unknown>;
+      expect(headers.Authorization).toBeUndefined();
     } finally {
       api.defaults.adapter = adapterOriginal;
     }
@@ -197,33 +209,35 @@ describe('api-client · interceptores (Bearer + refresh en 401)', () => {
       .mockResolvedValue({ data: { data: { accessToken: 'token-fresco' } } } as never);
 
     let llamadas = 0;
-    const adapter = jest.fn(async (config: any) => {
-      llamadas += 1;
-      if (llamadas === 1) {
-        // 1ª vez: el backend responde 401 (token expirado)
-        return Promise.reject({
-          isAxiosError: true,
-          config,
-          response: {
-            status: 401,
-            data: {},
-            statusText: 'Unauthorized',
-            headers: {},
+    const adapter = jest.fn(
+      async (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
+        llamadas += 1;
+        if (llamadas === 1) {
+          // 1ª vez: el backend responde 401 (token expirado)
+          return Promise.reject({
+            isAxiosError: true,
             config,
-          },
-          message: 'Request failed with status code 401',
-        });
-      }
-      // Reintento (ya con token fresco): 200
-      return {
-        data: { data: { secreto: 42 } },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config,
-      };
-    });
-    api.defaults.adapter = adapter as never;
+            response: {
+              status: 401,
+              data: {},
+              statusText: 'Unauthorized',
+              headers: {},
+              config,
+            },
+            message: 'Request failed with status code 401',
+          });
+        }
+        // Reintento (ya con token fresco): 200
+        return {
+          data: { data: { secreto: 42 } },
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config,
+        } as AxiosResponse;
+      },
+    );
+    api.defaults.adapter = adapter as AxiosAdapter;
 
     try {
       // ACT
