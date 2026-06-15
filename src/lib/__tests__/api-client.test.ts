@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import axios from 'axios';
 
 import {
   api,
@@ -7,6 +8,8 @@ import {
   onAuthChange,
   apiGet,
   apiPost,
+  apiPatch,
+  apiDelete,
 } from '@/lib/api-client';
 
 // ---------------------------------------------------------------------------
@@ -54,6 +57,11 @@ describe('api-client · gestión del token en memoria', () => {
 // Simula el TransformInterceptor del backend usando jest.spyOn sobre `api`.
 // ---------------------------------------------------------------------------
 describe('api-client · helpers que desempaquetan .data.data', () => {
+  beforeEach(() => {
+    setAccessToken(null);
+    jest.restoreAllMocks();
+  });
+
   it('apiGet devuelve res.data.data', async () => {
     // ARRANGE
     const spy = jest.spyOn(api, 'get').mockResolvedValue({
@@ -66,8 +74,6 @@ describe('api-client · helpers que desempaquetan .data.data', () => {
     // ASSERT
     expect(spy).toHaveBeenCalledWith('/users/me');
     expect(result).toEqual({ id: '1', email: 'ana@test.com' });
-
-    spy.mockRestore();
   });
 
   it('apiPost reenvía el body y devuelve data.data', async () => {
@@ -84,7 +90,152 @@ describe('api-client · helpers que desempaquetan .data.data', () => {
     // ASSERT
     expect(spy).toHaveBeenCalledWith('/auth/login', { email: 'x@test.com' });
     expect(result).toEqual({ ok: true });
+  });
 
-    spy.mockRestore();
+  it('apiPatch reenvía el body y devuelve data.data', async () => {
+    // ARRANGE
+    const spy = jest.spyOn(api, 'patch').mockResolvedValue({
+      data: { data: { updated: true } },
+    } as never);
+
+    // ACT
+    const result = await apiPatch<{ updated: boolean }>('/users/1', {
+      fullName: 'Ana',
+    });
+
+    // ASSERT
+    expect(spy).toHaveBeenCalledWith('/users/1', { fullName: 'Ana' });
+    expect(result).toEqual({ updated: true });
+  });
+
+  it('apiDelete devuelve data.data', async () => {
+    // ARRANGE
+    const spy = jest.spyOn(api, 'delete').mockResolvedValue({
+      data: { data: { deleted: true } },
+    } as never);
+
+    // ACT
+    const result = await apiDelete<{ deleted: boolean }>('/users/1');
+
+    // ASSERT
+    expect(spy).toHaveBeenCalledWith('/users/1');
+    expect(result).toEqual({ deleted: true });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// INTEGRATION-STYLE UNIT TESTS — interceptores de axios
+// Reemplazamos el ADAPTER de la instancia `api` para ejercitar de verdad los
+// interceptores (request: Bearer / response: refresh automático en 401) sin
+// abrir red real. El refresh interno usa axios.post -> se simula con spyOn.
+// ---------------------------------------------------------------------------
+describe('api-client · interceptores (Bearer + refresh en 401)', () => {
+  // Guardamos el adapter original para restaurarlo siempre.
+  const adapterOriginal = api.defaults.adapter;
+
+  beforeEach(() => {
+    setAccessToken(null);
+    jest.restoreAllMocks();
+    api.defaults.adapter = adapterOriginal;
+  });
+
+  it('el interceptor de request añade Authorization cuando hay token', async () => {
+    // ARRANGE
+    setAccessToken('tok-123');
+    const adapter = jest.fn(async (config: any) => ({
+      data: { data: 'ok' },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config,
+    }));
+    api.defaults.adapter = adapter as never;
+
+    try {
+      // ACT
+      const result = await apiGet<string>('/protegido');
+
+      // ASSERT
+      expect(result).toBe('ok');
+      const enviado: any = adapter.mock.calls[0][0];
+      expect(enviado.headers.Authorization).toBe('Bearer tok-123');
+    } finally {
+      api.defaults.adapter = adapterOriginal;
+    }
+  });
+
+  it('sin token NO añade el header Authorization', async () => {
+    // ARRANGE (sin setAccessToken -> null por beforeEach)
+    const adapter = jest.fn(async (config: any) => ({
+      data: { data: 'ok' },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config,
+    }));
+    api.defaults.adapter = adapter as never;
+
+    try {
+      // ACT
+      await apiGet('/publico');
+
+      // ASSERT
+      const enviado: any = adapter.mock.calls[0][0];
+      expect(enviado.headers?.Authorization).toBeUndefined();
+    } finally {
+      api.defaults.adapter = adapterOriginal;
+    }
+  });
+
+  it('ante un 401 refresca el token y reintenta la petición original', async () => {
+    // ARRANGE
+    setAccessToken('expirado');
+
+    // El refresh interno usa axios.post directamente -> lo simulamos.
+    const postSpy = jest
+      .spyOn(axios, 'post')
+      .mockResolvedValue({ data: { data: { accessToken: 'token-fresco' } } } as never);
+
+    let llamadas = 0;
+    const adapter = jest.fn(async (config: any) => {
+      llamadas += 1;
+      if (llamadas === 1) {
+        // 1ª vez: el backend responde 401 (token expirado)
+        return Promise.reject({
+          isAxiosError: true,
+          config,
+          response: {
+            status: 401,
+            data: {},
+            statusText: 'Unauthorized',
+            headers: {},
+            config,
+          },
+          message: 'Request failed with status code 401',
+        });
+      }
+      // Reintento (ya con token fresco): 200
+      return {
+        data: { data: { secreto: 42 } },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      };
+    });
+    api.defaults.adapter = adapter as never;
+
+    try {
+      // ACT
+      const result = await apiGet<{ secreto: number }>('/protegido');
+
+      // ASSERT
+      expect(result).toEqual({ secreto: 42 });
+      expect(postSpy).toHaveBeenCalled(); // hubo refresh
+      expect(adapter).toHaveBeenCalledTimes(2); // original + reintento
+      expect(getAccessToken()).toBe('token-fresco');
+    } finally {
+      api.defaults.adapter = adapterOriginal;
+    }
   });
 });
