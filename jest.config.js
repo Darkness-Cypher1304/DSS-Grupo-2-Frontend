@@ -17,8 +17,18 @@ const customJestConfig = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-  // Medir cobertura solo de la lógica de negocio/cliente.
-  collectCoverageFrom: ['src/lib/**/*.{ts,tsx}', '!src/lib/**/*.d.ts'],
+  // Medir cobertura SOLO de la lógica de negocio/cliente unit-testeable (.ts).
+  // Se excluyen los .tsx (auth-context, providers): son componentes React que
+  // requieren entorno DOM + React Testing Library, fuera del alcance unit aquí.
+  collectCoverageFrom: ['src/lib/**/*.ts', '!src/lib/**/*.d.ts'],
+  // Gate de cobertura (fiel a la masterclass: mínimo 80% de líneas).
+  coverageThreshold: {
+    global: {
+      lines: 80,
+    },
+  },
+  // lcov -> lo consume Codecov; text -> resumen legible en los logs de CI.
+  coverageReporters: ['text', 'lcov'],
   // No escanear artefactos de build (evita colisiones de haste-map).
   modulePathIgnorePatterns: ['<rootDir>/.next/'],
 };
