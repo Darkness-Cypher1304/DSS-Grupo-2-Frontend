@@ -1,9 +1,13 @@
 name: CI/CD Frontend - NeuroAlert
 
+# Fuerza Node 24 en las actions JS -> elimina el warning de deprecacion de Node 20.
+# Desde el 16/06/2026 Node 24 es el default; esta linea ya seria opcional.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches: [main]
-
   pull_request:
     branches: [main]
 
@@ -11,15 +15,14 @@ jobs:
   build-and-test:
     name: Build & Test
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v5
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
@@ -31,8 +34,16 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Test (Jest)
-        run: npm test -- --ci
+      - name: Test (Jest) + cobertura
+        run: npm run test:coverage -- --ci
+
+      - name: Subir cobertura a Codecov
+        uses: codecov/codecov-action@v5
+        continue-on-error: true
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Build
         run: npm run build
@@ -43,15 +54,14 @@ jobs:
     name: Security Scan
     needs: build-and-test
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v5
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Install dependencies
         run: npm ci
@@ -64,7 +74,6 @@ jobs:
     name: Deploy a Desarrollo
     needs: security-scan
     runs-on: ubuntu-latest
-
     steps:
       - name: Deploy DEV
         run: |
@@ -79,31 +88,26 @@ jobs:
     name: Smoke Test en Dev
     needs: deploy-dev
     runs-on: ubuntu-latest
-
     steps:
       - name: Verificar que Dev responde
         run: |
           for i in 1 2 3 4 5 6 7 8 9 10; do
             STATUS=$(curl -L -s -o /dev/null -w "%{http_code}" "${{ secrets.DEV_URL }}")
-
             if [[ $STATUS -eq 200 ]]; then
               echo "Dev responde correctamente"
               exit 0
             fi
-
             echo "Intento $i fallido (HTTP $STATUS)"
             sleep 15
           done
-
-          echo "Dev no respondió correctamente"
+          echo "Dev no respondio correctamente"
           exit 1
 
   deploy-prod:
     if: github.event_name == 'push'
-    name: Deploy a Producción
+    name: Deploy a Produccion
     needs: smoke-test
     runs-on: ubuntu-latest
-
     steps:
       - name: Deploy to Render (PROD)
         run: |
