@@ -83,7 +83,7 @@ jobs:
 
   security-scan:
     name: Security Scan
-    needs: build-and-test
+    needs: [build-and-test, codeql]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
