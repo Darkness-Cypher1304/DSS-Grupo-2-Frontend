@@ -50,6 +50,37 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
+  # CodeQL corre EN PARALELO a build-and-test (sin needs): analisis estatico de
+  # seguridad (SAST). Reporta los hallazgos al tab Security del repo.
+  # No bloquea el deploy a proposito: los hallazgos de CodeQL no rompen el run,
+  # asi que gatearlo solo frenaria el pipeline sin aportar seguridad real.
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, actions]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
+
   security-scan:
     name: Security Scan
     needs: build-and-test
