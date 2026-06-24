@@ -11,6 +11,10 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   build-and-test:
     name: Build & Test
@@ -22,7 +26,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
@@ -92,7 +96,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Install dependencies
         run: npm ci
@@ -133,11 +137,102 @@ jobs:
           done
           echo "Dev no respondio correctamente"
           exit 1
+          
+  dast:
+    if: github.event_name == 'push'
+    name: DAST - OWASP ZAP
+    needs: smoke-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Ejecutar OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: ${{ secrets.DEV_URL }}
+          rules_file_name: '.zap/rules.tsv'
+          fail_action: false
+          allow_issue_writing: false
+          artifact_name: 'frontend-zap-report'
+
+  security-gate:
+    if: github.event_name == 'push'
+    name: Security Gate
+    needs: dast
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar reporte ZAP
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-zap-report
+
+      - name: Evaluar política de seguridad
+        run: |
+          python << 'EOF'
+          import json
+          import sys
+
+          with open("report_json.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+
+          high_count = 0
+          medium_count = 0
+          low_count = 0
+
+          blacklist = {
+              "40012",  # Reflected XSS
+              "40014"   # Stored XSS
+          }
+
+          found_blacklist = set()
+
+          for site in data.get("site", []):
+              for alert in site.get("alerts", []):
+
+                  plugin_id = str(alert.get("pluginid", ""))
+
+                  riskcode = int(alert.get("riskcode", 0))
+
+                  if riskcode == 3:
+                      high_count += 1
+
+                  elif riskcode == 2:
+                      medium_count += 1
+
+                  elif riskcode == 1:
+                      low_count += 1
+
+                  if plugin_id in blacklist:
+                      found_blacklist.add(plugin_id)
+
+          print("=== RESUMEN SECURITY GATE ===")
+          print(f"High encontrados: {high_count}")
+          print(f"Medium encontrados: {medium_count}")
+          print(f"Low encontrados: {low_count}")
+          print(f"Blacklist encontrados: {len(found_blacklist)}")
+
+          if found_blacklist:
+              print("\nSe detectó una vulnerabilidad XSS.")
+              sys.exit(1)
+
+          if high_count > 0:
+              print("\nSe detectaron vulnerabilidades HIGH.")
+              sys.exit(1)
+
+          if medium_count >= 3:
+              print("\nSe detectaron 3 o más vulnerabilidades MEDIUM.")
+              sys.exit(1)
+
+          print("\nSecurity Gate aprobado.")
+          EOF
 
   deploy-prod:
     if: github.event_name == 'push'
     name: Deploy a Produccion
-    needs: smoke-test
+    needs: security-gate
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to Render (PROD)
