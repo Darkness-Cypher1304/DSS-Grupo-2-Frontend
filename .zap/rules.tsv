@@ -1,0 +1,41 @@
+# .zap/rules.tsv
+
+# ==========================================================
+# ALERTAS IGNORADAS
+# Riesgo muy bajo o aceptadas para este proyecto.
+# No aparecerán como alertas activas en el reporte.
+# ==========================================================
+
+10015	IGNORE	# Re-examine Cache-Control Directives
+10027	IGNORE	# Information Disclosure - Suspicious Comments
+10096	IGNORE	# Timestamp Disclosure
+
+# ==========================================================
+# ALERTAS CONOCIDAS
+# Aparecen en el reporte para seguimiento.
+# No bloquean por sí mismas.
+# ==========================================================
+
+10021	WARN	# X-Content-Type-Options Header Missing
+
+10035	WARN	# Strict-Transport-Security Header Not Set
+
+10038	WARN	# Content Security Policy Header Not Set
+
+10049	WARN	# Storable and Cacheable Content
+
+10063	WARN	# Permissions Policy Header Not Set
+
+90004	WARN	# Cross-Origin-Resource-Policy Header Missing
+
+90033	WARN	# Loosely Scoped Cookie
+
+# ==========================================================
+# NUNCA IGNORAR
+# El Security Gate las evalúa explícitamente.
+# ==========================================================
+
+# 40012 Reflected XSS
+# 40014 Stored XSS
+# 40018 SQL Injection
+# 10202 CSRF
