@@ -11,7 +11,7 @@ import { ArrowRight, Brain, ClipboardCheck, MessageCircleHeart, ShieldCheck, Spa
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-yellow-200 selection:bg-teal-700 selection:text-bone-50">
+    <main className="min-h-screen bg-bone-50 selection:bg-teal-700 selection:text-bone-50">
       <Header />
       <Hero />
       <ProblemSection />
