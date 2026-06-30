@@ -24,6 +24,20 @@ import {
 } from 'lucide-react';
 
 import { apiGet, apiPost } from '@/lib/api-client';
+import { NeuroLoader } from '@/components/neuro-loader';
+
+// Piso de duración del momento de marca al calcular el resultado: garantiza que
+// la transición sea observable (~1.9s) aunque la API responda al instante. Si la
+// API tarda más (p.ej. cold-start de Render), no añade espera extra.
+const MIN_CALC_MS = 1900;
+
+// Narrativa calmada (contexto sensible: tamizaje de TEA, no diagnóstico).
+const MCHAT_STEPS = [
+  'Analizando las 20 respuestas…',
+  'Identificando los ítems clave…',
+  'Calculando el nivel de tamizaje…',
+  'Preparando tus recomendaciones…',
+];
 
 interface Question {
   number: number;
@@ -43,7 +57,7 @@ interface MchatResult {
   createdAt: string;
 }
 
-type Stage = 'intro' | 'demographics' | 'questions' | 'review' | 'result';
+type Stage = 'intro' | 'demographics' | 'questions' | 'review' | 'calculating' | 'result';
 
 interface Demographics {
   childName: string;
@@ -69,11 +83,6 @@ export default function MchatPage() {
 
   const submitMutation = useMutation({
     mutationFn: (payload: object) => apiPost<MchatResult>('/mchat', payload),
-    onSuccess: (data) => {
-      setResult(data);
-      setStage('result');
-      window.scrollTo(0, 0);
-    },
   });
 
   function handleAnswer(answer: 'YES' | 'NO') {
@@ -88,14 +97,27 @@ export default function MchatPage() {
     }
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!questions) return;
-    submitMutation.mutate({
-      childName: demographics.childName || undefined,
-      childAgeMonths: demographics.childAgeMonths,
-      childGender: demographics.childGender || undefined,
-      responses,
-    });
+    setStage('calculating');
+    const startedAt = performance.now();
+    try {
+      const data = await submitMutation.mutateAsync({
+        childName: demographics.childName || undefined,
+        childAgeMonths: demographics.childAgeMonths,
+        childGender: demographics.childGender || undefined,
+        responses,
+      });
+      const remaining = Math.max(0, MIN_CALC_MS - (performance.now() - startedAt));
+      setTimeout(() => {
+        setResult(data);
+        setStage('result');
+        window.scrollTo(0, 0);
+      }, remaining);
+    } catch {
+      // submitMutation.error conserva el detalle → ReviewStage lo muestra al volver.
+      setStage('review');
+    }
   }
 
   if (isLoading || !questions) {
@@ -142,6 +164,8 @@ export default function MchatPage() {
           error={submitMutation.error}
         />
       )}
+
+      {stage === 'calculating' && <NeuroLoader messages={MCHAT_STEPS} />}
 
       {stage === 'result' && result && <ResultStage result={result} />}
     </div>
