@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 
 // Etiqueta de build visible: sirve para OBSERVAR que un cambio mergeado en
 // GitHub llegó al sitio en vivo tras el deploy. Bumpea este valor por release.
-const BUILD_TAG = 'v1.1 · demo observable';
+const BUILD_TAG = 'v1.2 · about + especialistas';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
