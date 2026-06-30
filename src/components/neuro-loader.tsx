@@ -9,11 +9,18 @@
 // teal #235452 · coral #e35a3e · bone #f7f4ed · Fraunces para el wordmark.
 // ============================================================================
 
+import { useEffect, useState } from 'react';
 import { Brain } from 'lucide-react';
 
 interface NeuroLoaderProps {
   /** Mensaje bajo el wordmark. */
   message?: string;
+  /**
+   * Secuencia de mensajes que se cicla bajo el wordmark (~1.6s c/u). Si se pasa,
+   * tiene prioridad sobre `message`. Con `prefers-reduced-motion` queda fijo en el
+   * primero. Útil para narrar un proceso (p.ej. el cálculo del M-CHAT).
+   */
+  messages?: string[];
   /** A pantalla completa fija (default) o embebido en su contenedor. */
   fullscreen?: boolean;
 }
@@ -26,7 +33,26 @@ const NODES = Array.from({ length: 6 }, (_, i) => {
   return { x: +(C + R * Math.cos(a)).toFixed(1), y: +(C + R * Math.sin(a)).toFixed(1) };
 });
 
-export function NeuroLoader({ message = 'Preparando tu espacio…', fullscreen = true }: NeuroLoaderProps) {
+export function NeuroLoader({ message = 'Preparando tu espacio…', messages, fullscreen = true }: NeuroLoaderProps) {
+  const sequence = messages && messages.length > 0 ? messages : [message];
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    if (sequence.length <= 1) return;
+    const reduce =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
+    const timer = setInterval(() => {
+      setIdx((i) => (i + 1) % sequence.length);
+    }, 1600);
+    return () => clearInterval(timer);
+    // sequence.length es estable; evitamos re-suscribir el intervalo en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sequence.length]);
+
+  const currentMessage = sequence[Math.min(idx, sequence.length - 1)];
+
   return (
     <div className={`neuro-loader ${fullscreen ? 'is-fixed' : 'is-inline'}`} role="status" aria-live="polite">
       <div className="grain-overlay neuro-grain" />
@@ -93,7 +119,7 @@ export function NeuroLoader({ message = 'Preparando tu espacio…', fullscreen =
       <div className="neuro-text">
         <div className="neuro-word">NeuroAlert</div>
         <div className="neuro-msg">
-          {message}
+          <span key={idx} className="neuro-msg-text">{currentMessage}</span>
           <span className="dot" />
           <span className="dot" />
           <span className="dot" />
@@ -240,6 +266,14 @@ export function NeuroLoader({ message = 'Preparando tu espacio…', fullscreen =
           display: inline-flex;
           align-items: baseline;
         }
+        .neuro-msg-text {
+          display: inline-block;
+          animation: msgIn 0.5s ease-out;
+        }
+        @keyframes msgIn {
+          from { opacity: 0; transform: translateY(3px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
         .dot {
           width: 3px;
           height: 3px;
@@ -257,7 +291,7 @@ export function NeuroLoader({ message = 'Preparando tu espacio…', fullscreen =
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .neuro-net, .neuro-brain, .ring, .aurora, .neuro-word, .dot { animation: none; }
+          .neuro-net, .neuro-brain, .ring, .aurora, .neuro-word, .dot, .neuro-msg-text { animation: none; }
         }
       `}</style>
     </div>
