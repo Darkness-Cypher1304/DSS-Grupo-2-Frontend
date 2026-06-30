@@ -48,7 +48,7 @@ interface QuestionDetail extends Omit<Question, 'answers'> {
   answers: AnswerDetail[];
 }
 
-type FilterTab = 'open' | 'mine' | 'all';
+type FilterTab = 'open' | 'mine' | 'closed' | 'all';
 
 export default function SpecialistQuestionsPage() {
   const [tab, setTab] = useState<FilterTab>('open');
@@ -61,6 +61,7 @@ export default function SpecialistQuestionsPage() {
   const filtered = (questions || []).filter((q) => {
     if (tab === 'open') return q.status === 'OPEN';
     if (tab === 'mine') return q.status === 'ASSIGNED' || q.status === 'ANSWERED';
+    if (tab === 'closed') return q.status === 'CLOSED';
     return true;
   });
 
@@ -84,6 +85,9 @@ export default function SpecialistQuestionsPage() {
         </TabButton>
         <TabButton active={tab === 'mine'} onClick={() => setTab('mine')}>
           En mis manos
+        </TabButton>
+        <TabButton active={tab === 'closed'} onClick={() => setTab('closed')}>
+          Cerradas ({(questions || []).filter((q) => q.status === 'CLOSED').length})
         </TabButton>
         <TabButton active={tab === 'all'} onClick={() => setTab('all')}>
           Todas

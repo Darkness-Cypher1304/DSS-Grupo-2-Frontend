@@ -41,9 +41,13 @@ export default function QuestionDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery<QuestionDetail>({
+  const { data, isLoading, isError } = useQuery<QuestionDetail>({
     queryKey: ['question', id],
     queryFn: () => apiGet<QuestionDetail>(`/questions/${id}`),
+    // El backend devuelve 404 si la consulta no es tuya (cierre de IDOR). No
+    // reintentamos: mostramos el estado de "no disponible" de inmediato en vez
+    // de quedarnos cargando para siempre.
+    retry: false,
   });
 
   const acceptMutation = useMutation({
@@ -56,10 +60,26 @@ export default function QuestionDetailPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['question', id] }),
   });
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
       <div className="flex justify-center py-20">
         <Loader2 size={32} className="animate-spin text-teal-700" />
+      </div>
+    );
+  }
+
+  // 404 / sin permiso → estado claro (antes: spinner infinito).
+  if (isError || !data) {
+    return (
+      <div className="container-narrow py-20 text-center">
+        <Lock size={28} className="mx-auto text-ink-fade mb-3" />
+        <h1 className="font-display text-2xl mb-2">Consulta no disponible</h1>
+        <p className="text-ink-mute mb-6">
+          No encontramos esta consulta o no tienes permiso para verla.
+        </p>
+        <button onClick={() => router.push('/ask')} className="btn-primary">
+          <ArrowLeft size={16} /> Volver a mis consultas
+        </button>
       </div>
     );
   }
