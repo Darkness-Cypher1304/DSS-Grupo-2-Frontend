@@ -212,6 +212,12 @@ export default function LoginPage() {
               Crear cuenta gratis
             </Link>
           </p>
+          <p className="mt-2 text-sm text-ink-mute text-center">
+            ¿Eres especialista?{' '}
+            <Link href="/register-specialist" className="text-teal-700 font-medium hover:underline">
+              Regístrate aquí
+            </Link>
+          </p>
         </div>
       </div>
 
