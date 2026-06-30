@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, ShieldOff, ShieldCheck, Users } from 'lucide-react';
+import { Loader2, ShieldOff, ShieldCheck, Users, MailCheck } from 'lucide-react';
 
 import { apiGet, apiPatch } from '@/lib/api-client';
 
@@ -34,6 +34,13 @@ export default function AdminUsersPage() {
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'ACTIVE' | 'SUSPENDED' }) =>
       apiPatch(`/users/admin/${id}/status`, { status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
+  });
+
+  // Verifica el correo de un usuario manualmente (deja emailVerified=true y
+  // status=ACTIVE). Sirve para onboarding sin depender del envío de correo.
+  const verifyMutation = useMutation({
+    mutationFn: (id: string) => apiPatch(`/users/admin/${id}/verify-email`, {}),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
   });
 
@@ -103,28 +110,41 @@ export default function AdminUsersPage() {
                     <td className="px-4 py-3 text-xs text-ink-fade">
                       {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString('es-PE') : 'Nunca'}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      {u.role !== 'ADMIN' && (
-                        u.status === 'ACTIVE' ? (
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        {u.role !== 'ADMIN' && !u.emailVerified && (
                           <button
-                            onClick={() => statusMutation.mutate({ id: u.id, status: 'SUSPENDED' })}
-                            disabled={statusMutation.isPending}
-                            className="btn-ghost text-xs px-3 py-1.5 text-coral-700"
-                          >
-                            <ShieldOff size={14} />
-                            Suspender
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => statusMutation.mutate({ id: u.id, status: 'ACTIVE' })}
-                            disabled={statusMutation.isPending}
+                            onClick={() => verifyMutation.mutate(u.id)}
+                            disabled={verifyMutation.isPending}
                             className="btn-ghost text-xs px-3 py-1.5 text-teal-700"
+                            title="Verificar el correo y activar la cuenta (desbloquea el login)"
                           >
-                            <ShieldCheck size={14} />
-                            Reactivar
+                            <MailCheck size={14} />
+                            Verificar
                           </button>
-                        )
-                      )}
+                        )}
+                        {u.role !== 'ADMIN' && (
+                          u.status === 'ACTIVE' ? (
+                            <button
+                              onClick={() => statusMutation.mutate({ id: u.id, status: 'SUSPENDED' })}
+                              disabled={statusMutation.isPending}
+                              className="btn-ghost text-xs px-3 py-1.5 text-coral-700"
+                            >
+                              <ShieldOff size={14} />
+                              Suspender
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => statusMutation.mutate({ id: u.id, status: 'ACTIVE' })}
+                              disabled={statusMutation.isPending}
+                              className="btn-ghost text-xs px-3 py-1.5 text-teal-700"
+                            >
+                              <ShieldCheck size={14} />
+                              Reactivar
+                            </button>
+                          )
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
