@@ -21,10 +21,12 @@ import {
   AlertTriangle,
   Info,
   ShieldCheck,
+  Download,
 } from 'lucide-react';
 
 import { apiGet, apiPost } from '@/lib/api-client';
 import { NeuroLoader } from '@/components/neuro-loader';
+import { generateMchatPdf } from '@/components/mchat-pdf';
 
 // Piso de duración del momento de marca al calcular el resultado: garantiza que
 // la transición sea observable (~1.9s) aunque la API responda al instante. Si la
@@ -574,21 +576,35 @@ function ResultStage({ result }: { result: MchatResult }) {
     };
   }, [result.riskLevel]);
 
+  // Reveal escalonado: cada bloque entra con un pequeño retraso (backwards =
+  // arranca oculto antes de su turno). Crea la "revelación" del resultado.
+  const reveal = (delay: number) => ({
+    animationDelay: `${delay}ms`,
+    animationFillMode: 'backwards' as const,
+  });
+
   return (
-    <div className="animate-fade-in-up">
+    <div>
       <div
-        className={`bg-gradient-to-br ${config.gradient} text-bone-50 rounded-3xl p-8 md:p-10 mb-8 relative overflow-hidden`}
+        className={`bg-gradient-to-br ${config.gradient} text-bone-50 rounded-3xl p-8 md:p-10 mb-8 relative overflow-hidden animate-fade-in-up`}
+        style={reveal(0)}
       >
         <div className="absolute inset-0 grain-overlay opacity-50" />
         <div className="relative z-10">
-          <div className="text-5xl mb-4">{config.emoji}</div>
-          <span className="text-xs font-mono uppercase tracking-widest text-bone-200">
+          <div className="text-5xl mb-4 animate-fade-in-up" style={reveal(150)}>{config.emoji}</div>
+          <span
+            className="text-xs font-mono uppercase tracking-widest text-bone-200 animate-fade-in-up inline-block"
+            style={reveal(250)}
+          >
             Resultado · {new Date(result.createdAt).toLocaleDateString('es-PE')}
           </span>
-          <h1 className="font-display text-5xl md:text-6xl tracking-tightest mt-2 mb-3">
+          <h1
+            className="font-display text-5xl md:text-6xl tracking-tightest mt-2 mb-3 animate-fade-in-up"
+            style={reveal(330)}
+          >
             {config.title}
           </h1>
-          <div className="flex flex-wrap gap-6 mt-6">
+          <div className="flex flex-wrap gap-6 mt-6 animate-fade-in-up" style={reveal(460)}>
             <div>
               <div className="text-xs uppercase tracking-wider text-bone-300">Score</div>
               <div className="font-display text-4xl">
@@ -607,24 +623,30 @@ function ResultStage({ result }: { result: MchatResult }) {
         </div>
       </div>
 
-      <h2 className="font-display text-2xl mb-4">Recomendaciones</h2>
-      <div className="prose prose-sm max-w-none text-ink-soft whitespace-pre-line">
-        {result.recommendations}
+      <div className="animate-fade-in-up" style={reveal(590)}>
+        <h2 className="font-display text-2xl mb-4">Recomendaciones</h2>
+        <div className="prose prose-sm max-w-none text-ink-soft whitespace-pre-line">
+          {result.recommendations}
+        </div>
       </div>
 
-      <div className="mt-8 grid md:grid-cols-2 gap-3">
+      <div className="mt-8 grid md:grid-cols-2 gap-3 animate-fade-in-up" style={reveal(710)}>
         {result.riskLevel !== 'LOW' && (
           <Link href="/ask" className="btn-coral py-3.5">
             Hablar con un especialista
             <ArrowRight size={16} />
           </Link>
         )}
+        <button type="button" onClick={() => void generateMchatPdf(result)} className="btn-secondary py-3.5">
+          <Download size={16} />
+          Descargar PDF para tu pediatra
+        </button>
         <Link href="/dashboard" className="btn-secondary py-3.5">
           Volver al inicio
         </Link>
       </div>
 
-      <p className="text-xs text-ink-fade mt-8 text-center">
+      <p className="text-xs text-ink-fade mt-8 text-center animate-fade-in-up" style={reveal(820)}>
         Recuerda: este resultado NO es un diagnóstico. Es una guía orientativa.
         Solo un profesional de salud puede diagnosticar TEA.
       </p>
