@@ -16,6 +16,7 @@ import {
 
 import { useAuth } from '@/lib/auth-context';
 import { NeuroLoader } from '@/components/neuro-loader';
+import { NotificationBell } from '@/components/notification-bell';
 
 export default function ParentLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
@@ -73,6 +74,9 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
       <main className="flex-1 overflow-auto">
         {children}
       </main>
+
+      {/* Notificaciones in-app (RF-34) — campana flotante con polling */}
+      <NotificationBell />
     </div>
   );
 }
