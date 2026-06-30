@@ -10,7 +10,7 @@ import { Brain, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth-context';
 import { NeuroLoader } from '@/components/neuro-loader';
-import type { UserRole } from '@/lib/api-client';
+import { apiPost, type UserRole } from '@/lib/api-client';
 
 const loginSchema = z.object({
   email: z.string().email('Correo electrónico inválido').max(255),
@@ -44,6 +44,10 @@ function LoginForm() {
   const { login, user } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  // Cuando el login falla por correo sin verificar, ofrecemos reenviar el enlace.
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [attemptedEmail, setAttemptedEmail] = useState('');
+  const [resend, setResend] = useState<'idle' | 'sending' | 'sent'>('idle');
 
   const {
     register,
@@ -63,14 +67,33 @@ function LoginForm() {
 
   async function onSubmit(values: LoginFormValues) {
     setServerError(null);
+    setNeedsVerification(false);
+    setResend('idle');
     try {
       await login(values.email, values.password);
       // El redirect lo maneja el useEffect cuando `user` queda seteado (validado por rol).
     } catch (err) {
       const error = err as { response?: { data?: { message?: string } } };
-      setServerError(
-        error.response?.data?.message || 'No pudimos iniciar sesión. Verifica tus datos.',
-      );
+      const msg =
+        error.response?.data?.message || 'No pudimos iniciar sesión. Verifica tus datos.';
+      setServerError(msg);
+      // El backend bloquea el login de cuentas sin verificar con este mensaje.
+      if (/verificar tu correo/i.test(msg)) {
+        setNeedsVerification(true);
+        setAttemptedEmail(values.email);
+      }
+    }
+  }
+
+  async function handleResendVerification() {
+    if (!attemptedEmail) return;
+    setResend('sending');
+    try {
+      await apiPost<{ message: string }>('/auth/resend-verification', { email: attemptedEmail });
+    } catch {
+      // Respuesta genérica igual: no revelamos nada del estado de la cuenta.
+    } finally {
+      setResend('sent');
     }
   }
 
@@ -130,6 +153,26 @@ function LoginForm() {
         <div className="rounded-xl bg-coral-50 border border-coral-200 px-4 py-3 text-sm text-coral-800">
           {serverError}
         </div>
+      )}
+
+      {needsVerification && (
+        <p className="text-sm text-ink-mute">
+          ¿No verificaste tu correo?{' '}
+          {resend === 'sent' ? (
+            <span className="text-teal-700">
+              Te reenviamos el enlace. Revisa tu bandeja y la carpeta de spam.
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={handleResendVerification}
+              disabled={resend === 'sending'}
+              className="text-teal-700 font-medium hover:underline disabled:opacity-60"
+            >
+              {resend === 'sending' ? 'Reenviando…' : 'Reenviar correo de verificación'}
+            </button>
+          )}
+        </p>
       )}
 
       <button type="submit" disabled={isSubmitting} className="btn-primary w-full py-3 text-base">

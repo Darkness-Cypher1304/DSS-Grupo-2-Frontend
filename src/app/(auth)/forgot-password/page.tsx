@@ -59,8 +59,8 @@ export default function ForgotPasswordPage() {
               </div>
               <h1 className="font-display text-4xl tracking-tightest mb-2">Revisa tu correo</h1>
               <p className="text-ink-mute mb-8">
-                Si <strong>{email}</strong> corresponde a una cuenta registrada, te enviamos un
-                enlace para crear una nueva contraseña. El enlace expira en 15 minutos.
+                Si <strong>{email}</strong> corresponde a una cuenta registrada y verificada, te
+                enviamos un enlace para crear una nueva contraseña. El enlace expira en 15 minutos.
               </p>
               <Link
                 href="/login"
@@ -115,8 +115,8 @@ export default function ForgotPasswordPage() {
               </form>
 
               <p className="text-xs text-ink-fade mt-5">
-                Por tu seguridad, no revelamos si un correo está registrado. Si la cuenta existe,
-                el enlace llegará a tu bandeja.
+                Por tu seguridad, no revelamos si un correo está registrado. Si la cuenta existe y
+                está verificada, el enlace llegará a tu bandeja.
               </p>
 
               <Link
