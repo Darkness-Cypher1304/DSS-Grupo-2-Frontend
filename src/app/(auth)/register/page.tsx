@@ -183,6 +183,12 @@ export default function RegisterPage() {
               Iniciar sesión
             </Link>
           </p>
+          <p className="mt-2 text-sm text-ink-mute text-center">
+            ¿Eres profesional de la salud?{' '}
+            <Link href="/register-specialist" className="text-teal-700 font-medium hover:underline">
+              Regístrate como especialista
+            </Link>
+          </p>
         </div>
       </div>
 
