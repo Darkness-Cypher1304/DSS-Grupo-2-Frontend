@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, Loader2, ShieldCheck, X, XCircle } from 'lucide-react';
+import { CheckCircle2, FileText, Loader2, ShieldCheck, X, XCircle } from 'lucide-react';
 
-import { apiGet, apiPatch } from '@/lib/api-client';
+import { api, apiGet, apiPatch } from '@/lib/api-client';
 
 interface PendingSpecialist {
   id: string;
@@ -13,6 +13,8 @@ interface PendingSpecialist {
   institution: string | null;
   yearsOfExperience: number;
   bio: string | null;
+  licenseDocumentKey: string | null;
+  cvDocumentKey: string | null;
   createdAt: string;
   user: {
     id: string;
@@ -27,6 +29,21 @@ export default function AdminSpecialistsPage() {
   const queryClient = useQueryClient();
   const [rejecting, setRejecting] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [docError, setDocError] = useState<string | null>(null);
+
+  // Descarga autenticada: el endpoint /storage/:id exige el Bearer (en memoria),
+  // así que pedimos el blob por axios y lo abrimos con un object URL temporal.
+  async function openDoc(id: string) {
+    setDocError(null);
+    try {
+      const res = await api.get(`/storage/${id}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data as Blob);
+      window.open(url, '_blank', 'noopener');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      setDocError('No se pudo abrir el documento.');
+    }
+  }
 
   const { data, isLoading } = useQuery<PendingSpecialist[]>({
     queryKey: ['admin-pending-specialists'],
@@ -107,6 +124,38 @@ export default function AdminSpecialistsPage() {
                   <p className="text-sm text-ink-soft">{s.bio}</p>
                 </div>
               )}
+
+              {/* Documentos de validación (RF-10 / descarga RF-28) */}
+              <div className="mb-4">
+                <div className="text-xs uppercase tracking-wider text-ink-fade font-mono mb-2">
+                  Documentos de validación
+                </div>
+                {s.licenseDocumentKey || s.cvDocumentKey ? (
+                  <div className="flex flex-wrap gap-2">
+                    {s.licenseDocumentKey && (
+                      <button
+                        type="button"
+                        onClick={() => openDoc(s.licenseDocumentKey!)}
+                        className="btn-secondary text-sm"
+                      >
+                        <FileText size={14} /> Ver licencia
+                      </button>
+                    )}
+                    {s.cvDocumentKey && (
+                      <button
+                        type="button"
+                        onClick={() => openDoc(s.cvDocumentKey!)}
+                        className="btn-secondary text-sm"
+                      >
+                        <FileText size={14} /> Ver CV
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-ink-fade">El solicitante no adjuntó documentos.</p>
+                )}
+                {docError && <p className="text-xs text-coral-600 mt-2">{docError}</p>}
+              </div>
 
               {rejecting === s.id ? (
                 <div className="border-t border-bone-200 pt-4">
