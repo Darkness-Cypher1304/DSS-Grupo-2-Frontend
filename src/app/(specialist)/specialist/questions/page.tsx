@@ -5,9 +5,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { CheckCircle2, ChevronDown, ChevronUp, Loader2, MessageCircle, Lock } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronUp, Clock, Loader2, MessageCircle, Lock } from 'lucide-react';
 
 import { apiGet, apiPost } from '@/lib/api-client';
+import { formatDateTime } from '@/lib/utils';
 
 const answerSchema = z.object({
   body: z.string().min(20, 'Tu respuesta debe ser más detallada').max(5000),
@@ -27,6 +28,23 @@ interface Question {
   author: { fullName: string };
   assignedTo: { fullName: string } | null;
   answers: { id: string }[];
+}
+
+// Detalle (GET /questions/:id) — trae el hilo COMPLETO de respuestas con su hora.
+interface AnswerDetail {
+  id: string;
+  body: string;
+  isAccepted: boolean;
+  createdAt: string;
+  specialist: {
+    id: string;
+    fullName: string;
+    specialistProfile?: { specialty?: string; institution?: string | null } | null;
+  };
+}
+
+interface QuestionDetail extends Omit<Question, 'answers'> {
+  answers: AnswerDetail[];
 }
 
 type FilterTab = 'open' | 'mine' | 'all';
@@ -117,6 +135,14 @@ function QuestionCard({ question }: { question: Question }) {
   const [showAnswerForm, setShowAnswerForm] = useState(false);
   const queryClient = useQueryClient();
 
+  // Hilo completo de respuestas (con su hora). Se trae al expandir o al responder.
+  const { data: detail, isLoading: detailLoading } = useQuery<QuestionDetail>({
+    queryKey: ['question-detail', question.id],
+    queryFn: () => apiGet<QuestionDetail>(`/questions/${question.id}`),
+    enabled: expanded || showAnswerForm,
+  });
+  const answers = detail?.answers ?? [];
+
   const assignMutation = useMutation({
     mutationFn: () => apiPost(`/questions/${question.id}/assign-to-me`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['specialist-questions-all'] }),
@@ -126,15 +152,29 @@ function QuestionCard({ question }: { question: Question }) {
     mutationFn: (payload: AnswerForm) => apiPost(`/questions/${question.id}/answer`, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['specialist-questions-all'] });
+      // Refresca el hilo para que la respuesta recién enviada (con su hora) aparezca.
+      queryClient.invalidateQueries({ queryKey: ['question-detail', question.id] });
+      reset();
       setShowAnswerForm(false);
+      setExpanded(true); // mantener visible el historial actualizado
     },
   });
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<AnswerForm>({ resolver: zodResolver(answerSchema) });
+
+  // Abrir el formulario también muestra el historial (el especialista ve qué ya respondió).
+  function toggleAnswerForm() {
+    setShowAnswerForm((s) => {
+      const next = !s;
+      if (next) setExpanded(true);
+      return next;
+    });
+  }
 
   const statusBadge = {
     OPEN: { label: 'Esperando especialista', color: 'bg-amber-100 text-amber-800' },
@@ -157,8 +197,8 @@ function QuestionCard({ question }: { question: Question }) {
             </span>
           )}
         </div>
-        <span className="text-xs text-ink-fade flex-shrink-0">
-          {new Date(question.createdAt).toLocaleDateString('es-PE')}
+        <span className="text-xs text-ink-fade flex-shrink-0 inline-flex items-center gap-1">
+          <Clock size={11} /> {formatDateTime(question.createdAt)}
         </span>
       </div>
 
@@ -170,9 +210,63 @@ function QuestionCard({ question }: { question: Question }) {
       </div>
 
       {expanded && (
-        <p className="text-sm text-ink-soft whitespace-pre-line mt-3 mb-4 p-4 bg-bone-50 rounded-xl">
-          {question.body}
-        </p>
+        <>
+          <p className="text-sm text-ink-soft whitespace-pre-line mt-3 mb-4 p-4 bg-bone-50 rounded-xl">
+            {question.body}
+          </p>
+
+          {/* Historial de respuestas (con fecha y hora) */}
+          <div className="mt-4">
+            <div className="flex items-center gap-2 mb-2">
+              <MessageCircle size={14} className="text-teal-700" />
+              <span className="text-xs font-medium uppercase tracking-wider text-ink-mute">
+                {answers.length === 0
+                  ? 'Sin respuestas aún'
+                  : `Historial de respuestas (${answers.length})`}
+              </span>
+            </div>
+
+            {detailLoading && answers.length === 0 ? (
+              <div className="flex items-center gap-2 text-xs text-ink-fade py-2">
+                <Loader2 size={13} className="animate-spin" /> Cargando historial…
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {answers.map((a) => (
+                  <div
+                    key={a.id}
+                    className={`p-3 rounded-xl border text-sm ${
+                      a.isAccepted
+                        ? 'border-teal-300 bg-teal-50/60'
+                        : 'border-bone-200 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3 mb-1.5">
+                      <span className="font-medium text-ink-soft">
+                        {a.specialist.fullName}
+                        {a.specialist.specialistProfile?.specialty && (
+                          <span className="font-normal text-ink-fade">
+                            {' · '}
+                            {a.specialist.specialistProfile.specialty}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-2xs text-ink-fade inline-flex items-center gap-1 flex-shrink-0">
+                        <Clock size={10} /> {formatDateTime(a.createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-ink-soft whitespace-pre-line leading-relaxed">{a.body}</p>
+                    {a.isAccepted && (
+                      <span className="mt-2 inline-flex items-center gap-1 text-2xs text-teal-700 font-medium">
+                        <CheckCircle2 size={11} /> Aceptada por el padre
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       <div className="flex flex-wrap items-center gap-2 mt-3">
@@ -195,7 +289,7 @@ function QuestionCard({ question }: { question: Question }) {
 
         {(question.status === 'ASSIGNED' || question.status === 'ANSWERED') && (
           <button
-            onClick={() => setShowAnswerForm((s) => !s)}
+            onClick={toggleAnswerForm}
             className="btn-coral text-xs px-3 py-1.5"
           >
             {showAnswerForm ? 'Cancelar' : question.answers.length === 0 ? 'Responder' : 'Añadir respuesta'}

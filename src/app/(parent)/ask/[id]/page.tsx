@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle2, Loader2, Lock, MessageCircle, Star } from 'lucide-react';
 
 import { apiGet, apiPatch } from '@/lib/api-client';
+import { formatDateTime } from '@/lib/utils';
 
 interface Specialist {
   id: string;
@@ -95,7 +96,7 @@ export default function QuestionDetailPage() {
         {data.title}
       </h1>
       <p className="text-xs text-ink-fade mb-8">
-        Creada el {new Date(data.createdAt).toLocaleDateString('es-PE', { dateStyle: 'long' })}
+        Creada el {formatDateTime(data.createdAt)}
         {data.childAgeMonths != null && ` · niño/a de ${data.childAgeMonths} meses`}
       </p>
 
@@ -144,7 +145,7 @@ export default function QuestionDetailPage() {
 
               <div className="flex items-center justify-between mt-5 pt-4 border-t border-bone-200">
                 <span className="text-xs text-ink-fade">
-                  {new Date(a.createdAt).toLocaleDateString('es-PE')}
+                  {formatDateTime(a.createdAt)}
                 </span>
                 {!a.isAccepted && data.status !== 'CLOSED' && (
                   <button
