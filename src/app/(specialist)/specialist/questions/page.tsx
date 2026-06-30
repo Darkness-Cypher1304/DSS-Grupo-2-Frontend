@@ -9,6 +9,7 @@ import { CheckCircle2, ChevronDown, ChevronUp, Clock, Loader2, MessageCircle, Lo
 
 import { apiGet, apiPost } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/utils';
+import { SkeletonList } from '@/components/skeleton';
 
 const answerSchema = z.object({
   body: z.string().min(20, 'Tu respuesta debe ser más detallada').max(5000),
@@ -90,9 +91,7 @@ export default function SpecialistQuestionsPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 size={28} className="animate-spin text-teal-700" />
-        </div>
+        <SkeletonList count={3} />
       ) : filtered.length === 0 ? (
         <div className="card text-center py-12">
           <MessageCircle size={28} className="mx-auto text-teal-300 mb-2" />
