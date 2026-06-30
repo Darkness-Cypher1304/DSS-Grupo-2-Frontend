@@ -33,8 +33,12 @@ const nextConfig = {
       "object-src 'none'",
       "frame-ancestors 'none'",
       "form-action 'self'",
-      "img-src 'self' data: https:",
+      "img-src 'self' data:",
       "font-src 'self' https://fonts.gstatic.com",
+      // img-src SIN el comodín 'https:' (ZAP lo marca como "Wildcard Directive"
+      // Medium). 'self' + data: cubre los SVG inline, iconos y data-URIs de la
+      // app. Si en el futuro se renderizan imágenes externas en artículos,
+      // añadir aquí su host específico (no un comodín de esquema).
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "script-src 'self' 'unsafe-inline'",
       "connect-src 'self' https://miapp-dev.onrender.com https://miapp-6ex5.onrender.com",
