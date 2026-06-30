@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 
-import { cn } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // UNIT TESTS — cn(): merge de clases Tailwind (función pura, sin dependencias)
@@ -25,5 +25,29 @@ describe('cn (merge de clases Tailwind)', () => {
 
   it('soporta el formato objeto { clase: condicion }', () => {
     expect(cn('base', { hidden: false, block: true })).toBe('base block');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UNIT TESTS — formatDateTime(): fecha+hora es-PE, robusto ante entradas malas
+// ---------------------------------------------------------------------------
+describe('formatDateTime (fecha + hora)', () => {
+  it('devuelve "" para entradas vacías o nulas', () => {
+    expect(formatDateTime('')).toBe('');
+    expect(formatDateTime(null)).toBe('');
+    expect(formatDateTime(undefined)).toBe('');
+  });
+
+  it('devuelve "" para una fecha inválida', () => {
+    expect(formatDateTime('no-es-una-fecha')).toBe('');
+  });
+
+  it('incluye el año y la hora para una fecha ISO válida', () => {
+    const out = formatDateTime('2026-06-30T14:05:00.000Z');
+    // No fijamos el formato exacto (depende del locale/zona del runtime), pero
+    // debe ser un string no vacío que contenga el año y los minutos.
+    expect(out).not.toBe('');
+    expect(out).toContain('2026');
+    expect(out).toMatch(/\d{1,2}:\d{2}/);
   });
 });
