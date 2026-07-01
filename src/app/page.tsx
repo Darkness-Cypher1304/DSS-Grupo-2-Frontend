@@ -14,11 +14,64 @@ export default function LandingPage() {
     <main className="min-h-screen bg-bone-50 selection:bg-teal-700 selection:text-bone-50">
       <Header />
       <Hero />
+      <PathChooser />
       <ProblemSection />
       <FeaturesSection />
       <CTASection />
       <Footer />
     </main>
+  );
+}
+
+// ============================================================================
+// ¿QUÉ DESEAS HACER? — bifurcación de los dos caminos (pantalla 1 del prompt)
+// ============================================================================
+function PathChooser() {
+  return (
+    <section className="border-y border-bone-200 bg-white py-16">
+      <div className="container-wide">
+        <div className="text-center max-w-xl mx-auto mb-10">
+          <span className="text-xs font-mono uppercase tracking-widest text-coral-700">
+            ¿Qué deseas hacer?
+          </span>
+          <h2 className="font-display text-3xl md:text-4xl mt-3 tracking-tightest text-ink">
+            Elige tu camino
+          </h2>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          {/* Padre / apoderado */}
+          <div className="card-clinical flex flex-col">
+            <span className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700 mb-4">
+              <MessageCircleHeart size={22} />
+            </span>
+            <h3 className="font-display text-2xl mb-1">Soy padre o apoderado</h3>
+            <p className="text-ink-mute text-sm mb-6 flex-1">
+              Quiero evaluar a mi hijo o hija con la herramienta M-CHAT-R y conectar con
+              especialistas verificados.
+            </p>
+            <Link href="/register" className="btn-primary self-start px-6 py-3">
+              Crear cuenta <ArrowRight size={17} />
+            </Link>
+          </div>
+
+          {/* Profesional de la salud */}
+          <div className="card flex flex-col">
+            <span className="w-12 h-12 rounded-2xl bg-coral-50 border border-coral-100 flex items-center justify-center text-coral-600 mb-4">
+              <ShieldCheck size={22} />
+            </span>
+            <h3 className="font-display text-2xl mb-1">Soy profesional de la salud</h3>
+            <p className="text-ink-mute text-sm mb-6 flex-1">
+              Quiero postular como especialista de NeuroAlert. Revisaremos tu colegiatura y
+              credenciales antes de aprobarte.
+            </p>
+            <Link href="/postular" className="btn-secondary self-start px-6 py-3">
+              Postular como especialista <ArrowRight size={17} />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
