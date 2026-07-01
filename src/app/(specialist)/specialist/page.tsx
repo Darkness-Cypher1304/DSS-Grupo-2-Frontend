@@ -6,6 +6,7 @@ import { ArrowRight, MessageCircle, FileText, Clock, CheckCircle2 } from 'lucide
 
 import { useAuth } from '@/lib/auth-context';
 import { apiGet } from '@/lib/api-client';
+import { InstitutionalEmail } from '@/components/institutional-email';
 
 interface QuestionItem {
   id: string;
@@ -42,16 +43,19 @@ export default function SpecialistDashboard() {
 
   return (
     <div className="container-wide py-12">
-      <div className="mb-10">
-        <span className="text-xs font-mono uppercase tracking-widest text-coral-700">
-          Panel del especialista
-        </span>
-        <h1 className="font-display text-4xl md:text-5xl tracking-tightest mt-2">
-          Buen día, <span className="italic font-light">{user?.fullName?.split(' ')[0]}</span>.
-        </h1>
-        <p className="text-ink-mute mt-2 max-w-xl">
-          Bandeja de consultas pendientes y panel de contenido educativo.
-        </p>
+      <div className="mb-10 flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+        <div>
+          <span className="text-xs font-mono uppercase tracking-widest text-coral-700">
+            Panel del especialista
+          </span>
+          <h1 className="font-display text-4xl md:text-5xl tracking-tightest mt-2">
+            Buen día, <span className="italic font-light">{user?.fullName?.split(' ')[0]}</span>.
+          </h1>
+          <p className="text-ink-mute mt-2 max-w-xl">
+            Bandeja de consultas pendientes y panel de contenido educativo.
+          </p>
+        </div>
+        <InstitutionalEmail fullName={user?.fullName} className="md:w-72 shrink-0" />
       </div>
 
       {/* Métricas */}

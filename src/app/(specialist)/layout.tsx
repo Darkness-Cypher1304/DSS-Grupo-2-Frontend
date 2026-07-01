@@ -7,6 +7,7 @@ import { Home, MessageCircle, FileText, LogOut, Stethoscope } from 'lucide-react
 
 import { useAuth } from '@/lib/auth-context';
 import { NeuroLoader } from '@/components/neuro-loader';
+import { InstitutionalEmail } from '@/components/institutional-email';
 
 export default function SpecialistLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
@@ -47,6 +48,7 @@ export default function SpecialistLayout({ children }: { children: React.ReactNo
           <div className="px-3 py-2 mb-2">
             <div className="text-sm font-medium truncate">{user.fullName}</div>
             <div className="text-xs text-ink-fade truncate">{user.email}</div>
+            <InstitutionalEmail fullName={user.fullName} compact className="mt-2" />
           </div>
           <button
             onClick={() => logout().then(() => router.push('/'))}
