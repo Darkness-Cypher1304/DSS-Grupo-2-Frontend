@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Home, MessageCircle, FileText, LogOut, Stethoscope } from 'lucide-react';
+import { Home, MessageCircle, FileText, LogOut, Stethoscope, Settings } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth-context';
 import { NeuroLoader } from '@/components/neuro-loader';
@@ -42,6 +42,7 @@ export default function SpecialistLayout({ children }: { children: React.ReactNo
           <NavItem href="/specialist" icon={<Home size={18} />} label="Inicio" />
           <NavItem href="/specialist/questions" icon={<MessageCircle size={18} />} label="Bandeja consultas" />
           <NavItem href="/specialist/content" icon={<FileText size={18} />} label="Mis artículos" />
+          <NavItem href="/specialist/cuenta" icon={<Settings size={18} />} label="Mi cuenta" />
         </nav>
 
         <div className="p-4 border-t border-bone-200">
