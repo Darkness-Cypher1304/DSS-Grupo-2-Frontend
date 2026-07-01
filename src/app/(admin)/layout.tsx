@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Home, Users, FileText, ShieldCheck, ClipboardList, LogOut } from 'lucide-react';
+import { Home, Users, FileText, ShieldCheck, ClipboardList, UserMinus, LogOut } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth-context';
 import { NeuroLoader } from '@/components/neuro-loader';
@@ -43,6 +43,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <NavItem href="/admin/specialists" icon={<ShieldCheck size={18} />} label="Verificar especialistas" />
           <NavItem href="/admin/content" icon={<FileText size={18} />} label="Revisión de contenido" />
           <NavItem href="/admin/users" icon={<Users size={18} />} label="Usuarios" />
+          <NavItem href="/admin/deletions" icon={<UserMinus size={18} />} label="Bajas" />
         </nav>
 
         <div className="p-4 border-t border-bone-200">
