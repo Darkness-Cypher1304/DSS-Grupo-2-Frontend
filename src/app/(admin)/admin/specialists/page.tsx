@@ -69,7 +69,10 @@ export default function AdminSpecialistsPage() {
         Especialistas por verificar
       </h1>
       <p className="text-ink-mute mb-8 max-w-xl">
-        Verifica la colegiatura en el sitio web del CMP/CPsP antes de aprobar.
+        Solicitudes de <strong>upgrade</strong>: usuarios que <strong>ya tienen cuenta</strong> (p. ej.
+        apoderados) y pidieron ser especialistas desde su perfil. Las postulaciones de personas
+        <strong> sin cuenta</strong> se revisan en <strong>“Postulaciones”</strong>. Verifica la
+        colegiatura en el sitio del CMP/CPsP antes de aprobar.
       </p>
 
       {isLoading ? (

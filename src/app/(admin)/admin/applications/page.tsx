@@ -50,16 +50,21 @@ interface ApplicationDetail extends ApplicationSummary {
   dniFileId: string;
   cvSha256: string;
   dniSha256: string;
+  consentAccepted: boolean;
   submittedIp: string;
+  submittedUserAgent: string | null;
 }
 
+// El checklist NO es "¿se subieron los archivos?" (el formulario ya los exige):
+// es el ADMIN atestiguando que VERIFICÓ manualmente cada punto (p. ej. la
+// colegiatura en el registro del CMP, la entrevista). Por eso va en 1ª persona.
 const CHECKLIST_ITEMS: { key: keyof ChecklistState; label: string }[] = [
-  { key: 'dniValidated', label: 'DNI validado' },
-  { key: 'cmpVerified', label: 'CMP / colegiatura verificada' },
-  { key: 'cvReviewed', label: 'CV revisado' },
-  { key: 'interviewDone', label: 'Entrevista realizada' },
-  { key: 'documentsComplete', label: 'Documentos completos' },
-  { key: 'noInconsistencies', label: 'Sin inconsistencias' },
+  { key: 'dniValidated', label: 'Verifiqué el documento de identidad (DNI)' },
+  { key: 'cmpVerified', label: 'Confirmé la colegiatura en el registro del CMP/CPsP' },
+  { key: 'cvReviewed', label: 'Revisé el currículum (CV)' },
+  { key: 'interviewDone', label: 'Realicé la entrevista con el postulante' },
+  { key: 'documentsComplete', label: 'Los documentos están completos y legibles' },
+  { key: 'noInconsistencies', label: 'No hay inconsistencias en los datos' },
 ];
 
 interface ChecklistState {
@@ -264,21 +269,29 @@ function ReviewPanel({ appId, onDone }: { appId: string; onDone: () => void }) {
 
   return (
     <div className="mt-4 space-y-5">
-      {/* Datos completos */}
+      {/* Todos los datos enviados por el postulante */}
       <div className="grid md:grid-cols-2 gap-3 text-sm">
+        <Info label="Nombre completo" value={`${detail.firstName} ${detail.lastName}`} />
+        <Info label="Correo" value={detail.email} />
         <Info label="Teléfono" value={detail.phoneNumber} />
+        <Info label="N° de colegiatura (CMP)" value={detail.licenseNumber} />
+        <Info label="Especialidad" value={detail.specialty} />
+        <Info label="Universidad" value={detail.university} />
         <Info label="País" value={detail.country} />
+        <Info label="Años de experiencia" value={`${detail.yearsOfExperience} años`} />
         <Info label="Disponibilidad" value={detail.availability} />
-        {detail.linkedinUrl && (
-          <Info
-            label="LinkedIn"
-            value={
+        <Info
+          label="LinkedIn"
+          value={
+            detail.linkedinUrl ? (
               <a href={detail.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-teal-700 hover:underline break-all">
                 {detail.linkedinUrl}
               </a>
-            }
-          />
-        )}
+            ) : (
+              <span className="text-ink-fade">—</span>
+            )
+          }
+        />
       </div>
 
       <div>
@@ -306,9 +319,21 @@ function ReviewPanel({ appId, onDone }: { appId: string; onDone: () => void }) {
         {docError && <p className="text-xs text-coral-600 mt-2">{docError}</p>}
       </div>
 
-      {/* Checklist de verificación */}
+      {/* Metadatos de seguridad de la solicitud (§9: consentimiento, IP, fecha) */}
+      <div className="grid sm:grid-cols-3 gap-3 text-sm border-t border-bone-200 pt-4">
+        <Info label="Consentimiento" value={detail.consentAccepted ? 'Aceptado' : 'No aceptado'} />
+        <Info label="IP de envío" value={detail.submittedIp} />
+        <Info label="Fecha y hora" value={new Date(detail.createdAt).toLocaleString('es-PE')} />
+      </div>
+
+      {/* Checklist de verificación (atestación MANUAL del admin, no "¿se subió?") */}
       <div className="border border-bone-200 rounded-xl p-4">
-        <div className="text-sm font-medium text-ink-soft mb-3">Checklist de verificación</div>
+        <div className="text-sm font-medium text-ink-soft mb-1">Checklist de verificación</div>
+        <p className="text-xs text-ink-mute mb-3">
+          Confirma que verificaste <strong>manualmente</strong> cada punto antes de aprobar (p. ej. la
+          colegiatura en el sitio del CMP/CPsP y la entrevista). Que el postulante haya subido los
+          archivos no equivale a haberlos verificado.
+        </p>
         <div className="grid sm:grid-cols-2 gap-2">
           {CHECKLIST_ITEMS.map((item) => (
             <label key={item.key} className="flex items-center gap-2 text-sm cursor-pointer">
