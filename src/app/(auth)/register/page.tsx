@@ -88,7 +88,14 @@ export default function RegisterPage() {
               <CheckCircle className="mx-auto text-teal-700 mb-3" size={40} />
               <h3 className="font-display text-2xl mb-2">¡Listo!</h3>
               <p className="text-sm text-ink-soft">{success}</p>
-              <p className="text-xs text-ink-mute mt-3">Te redirigiremos al login...</p>
+              <p className="text-xs text-ink-mute mt-4">
+                ¿Ya te habías registrado con este correo y no te llegó?{' '}
+                <Link href="/login" className="text-teal-700 font-medium hover:underline">
+                  Reenvía la verificación desde Iniciar sesión
+                </Link>
+                .
+              </p>
+              <p className="text-xs text-ink-mute mt-2">Te redirigiremos al login...</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
