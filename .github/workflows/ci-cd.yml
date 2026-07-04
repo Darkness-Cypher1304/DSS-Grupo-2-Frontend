@@ -1,7 +1,6 @@
 name: CI/CD Frontend - NeuroAlert
 
 # Fuerza Node 24 en las actions JS -> elimina el warning de deprecacion de Node 20.
-# Desde el 16/06/2026 Node 24 es el default; esta linea ya seria opcional.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -15,49 +14,105 @@ permissions:
   contents: read
   security-events: write
 
+# ============================================================================
+# Flujo (Fases 10-11):
+#   Checkout -> Install -> Type Check + Lint (quality)
+#     -> Unit Tests -> Integration Tests -> Coverage Gate (85% en 4 metricas)
+#     -> [ SAST CodeQL  ||  Supply Chain Trivy+SBOM  ||  Dependency Scan npm audit ]
+#     -> Build -> Deploy DEV -> Smoke -> (E2E Playwright: reservado) -> DAST
+#     -> Security Gate -> Deploy PROD
+#
+# La cobertura NO se sube a Codecov: el gate lo aplica Jest (coverageThreshold) y
+# el resumen/tabla se publican en el propio run vía $GITHUB_STEP_SUMMARY.
+# ============================================================================
 jobs:
-  build-and-test:
-    name: Build & Test
+  # --------------------------------------------------------------- Calidad
+  quality:
+    name: Type Check & Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
+      - uses: actions/checkout@v5
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
+      - run: npm ci
       - name: Type check
-        run: npm run type-check || npx tsc --noEmit
-
+        run: npm run type-check
       - name: Lint
         run: npm run lint
 
-      - name: Test (Jest) + cobertura
-        run: npm run test:coverage -- --ci
-
-      - name: Subir cobertura a Codecov
-        uses: codecov/codecov-action@v5
-        continue-on-error: true
+  # ------------------------------------------------------------ Unit Tests
+  # Job propio para feedback rapido de la base de la piramide.
+  unit-tests:
+    name: Unit Tests
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
         with:
-          files: ./coverage/lcov.info
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      - name: Ejecutar unit tests
+        run: |
+          mkdir -p tests/reports
+          npm run test:unit -- --ci --json --outputFile=tests/reports/unit-results.json
+      - name: Resumen de Unit Tests
+        if: always()
+        run: node .github/scripts/test-summary.mjs tests/reports/unit-results.json "Unit Tests" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Build
-        run: npm run build
-        env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+  # ----------------------------------------------------- Integration Tests
+  # RTL + MSW (API simulada). Corre ANTES del build para fallar rapido, en su
+  # propio job (respeta la separacion Unit / Integration).
+  integration-tests:
+    name: Integration Tests
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      - name: Ejecutar integration tests
+        run: |
+          mkdir -p tests/reports
+          npm run test:integration -- --ci --json --outputFile=tests/reports/integration-results.json
+      - name: Resumen de Integration Tests
+        if: always()
+        run: node .github/scripts/test-summary.mjs tests/reports/integration-results.json "Integration Tests" >> "$GITHUB_STEP_SUMMARY"
 
-  # CodeQL corre EN PARALELO a build-and-test (sin needs): analisis estatico de
-  # seguridad (SAST). Reporta los hallazgos al tab Security del repo.
-  # No bloquea el deploy a proposito: los hallazgos de CodeQL no rompen el run,
-  # asi que gatearlo solo frenaria el pipeline sin aportar seguridad real.
+  # ---------------------------------------------------------- Coverage Gate
+  # Corre la suite COMPLETA (unit + integration) con cobertura combinada y aplica
+  # el umbral del 85% en Statements/Branches/Functions/Lines (coverageThreshold de
+  # Jest -> falla el job si no se cumple). Publica la tabla en el Job Summary.
+  coverage-gate:
+    name: Coverage Gate (85%)
+    needs: [unit-tests, integration-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      - name: Tests + cobertura (gate 85%)
+        run: npm run test:coverage -- --ci
+      - name: Tabla de cobertura en el Job Summary
+        if: always()
+        run: node .github/scripts/coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+
+  # --------------------------------------------------------------- SAST
+  # CodeQL corre EN PARALELO (sin needs): analisis estatico de seguridad.
+  # No bloquea el deploy a proposito (reporta al tab Security).
   codeql:
     name: CodeQL (${{ matrix.language }})
     runs-on: ubuntu-latest
@@ -71,24 +126,19 @@ jobs:
       matrix:
         language: [javascript-typescript, actions]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
+      - uses: actions/checkout@v5
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: none
-
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"
 
-  # Trivy + SBOM corren EN PARALELO (sin needs) igual que codeql: escaneo de
-  # vulnerabilidades de dependencias (report-only, exit-code 0) + inventario
-  # CycloneDX. NO alimenta deploy-dev/security-gate -> no puede sumar Medium
-  # al gate de ZAP ni bloquear el pipeline.
+  # ------------------------------------------------------- Supply Chain
+  # Trivy fs (report-only) + SBOM CycloneDX. En paralelo, no bloquea.
   supply-chain:
     name: Supply Chain - Trivy + SBOM
     runs-on: ubuntu-latest
@@ -96,9 +146,7 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
+      - uses: actions/checkout@v5
       - name: Trivy - escaneo de vulnerabilidades (SARIF, report-only)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -108,13 +156,11 @@ jobs:
           output: trivy-results.sarif
           severity: 'CRITICAL,HIGH'
           exit-code: '0'
-
       - name: Subir resultados de Trivy a GitHub Security
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-results.sarif
           category: trivy-fs
-
       - name: Trivy - generar SBOM (CycloneDX)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -122,7 +168,6 @@ jobs:
           scan-ref: '.'
           format: cyclonedx
           output: sbom.cdx.json
-
       - name: Subir SBOM como artifact
         uses: actions/upload-artifact@v4
         with:
@@ -130,39 +175,57 @@ jobs:
           path: sbom.cdx.json
           retention-days: 90
 
-  security-scan:
-    name: Security Scan
-    needs: [build-and-test, codeql]
+  # ---------------------------------------------------- Dependency Scan
+  # npm audit (bloqueante en HIGH). Va tras el gate de cobertura y CodeQL, como
+  # ultima verja de dependencias antes de construir/desplegar.
+  dependency-scan:
+    name: Dependency Scan (npm audit)
+    needs: [coverage-gate, codeql]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
+      - uses: actions/checkout@v5
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      - name: Security audit (produccion)
+        run: npm audit --omit=dev --audit-level=high
 
-      - name: Install dependencies
-        run: npm ci
+  # -------------------------------------------------------------- Build
+  build:
+    name: Build
+    needs: [coverage-gate, dependency-scan]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
-      - name: Security audit
-        run: npm audit --audit-level=high
-
+  # --------------------------------------------------------- Deploy DEV
   deploy-dev:
     if: github.event_name == 'push'
     name: Deploy a Desarrollo
-    needs: security-scan
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Deploy DEV
         run: |
           curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_DEV }}"
           echo "Deploy DEV triggered"
-
       - name: Esperar inicio de despliegue
         run: sleep 30
 
+  # ---------------------------------------------------------- Smoke Test
   smoke-test:
     if: github.event_name == 'push'
     name: Smoke Test en Dev
@@ -182,17 +245,29 @@ jobs:
           done
           echo "Dev no respondio correctamente"
           exit 1
-          
+
+  # ------------------------------------------- E2E (Playwright) — RESERVADO
+  # Slot preparado para pruebas E2E reales contra el DEV desplegado (Playwright),
+  # como evolucion natural del pipeline. NO se ejecuta todavia (`if: false`).
+  # Al implementarlo: quitar el `if: false`, anadir los pasos de Playwright y
+  # cambiar el `needs` del job `dast` a `[e2e]` para encadenarlo tras E2E.
+  e2e:
+    name: E2E Tests (Playwright) — reservado
+    if: false
+    needs: smoke-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder
+        run: echo "Reservado para Playwright (tests/e2e). Aun no implementado."
+
+  # --------------------------------------------------------------- DAST
   dast:
     if: github.event_name == 'push'
     name: DAST - OWASP ZAP
     needs: smoke-test
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
+      - uses: actions/checkout@v5
       - name: Ejecutar OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.14.0
         with:
@@ -202,18 +277,17 @@ jobs:
           allow_issue_writing: false
           artifact_name: 'frontend-zap-report'
 
+  # ------------------------------------------------------- Security Gate
   security-gate:
     if: github.event_name == 'push'
     name: Security Gate
     needs: dast
     runs-on: ubuntu-latest
-
     steps:
       - name: Descargar reporte ZAP
         uses: actions/download-artifact@v4
         with:
           name: frontend-zap-report
-
       - name: Evaluar política de seguridad
         run: |
           python << 'EOF'
@@ -274,6 +348,7 @@ jobs:
           print("\nSecurity Gate aprobado.")
           EOF
 
+  # -------------------------------------------------------- Deploy PROD
   deploy-prod:
     if: github.event_name == 'push'
     name: Deploy a Produccion
@@ -284,6 +359,3 @@ jobs:
         run: |
           curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_PROD }}"
           echo "Deploy PROD triggered"
-
-
-#prueba de natwyn-ux

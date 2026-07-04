@@ -28,3 +28,11 @@ next-env.d.ts
 
 # Coverage reports (generados por jest --coverage)
 coverage/
+
+# Reportes de tests (cobertura + resultados JSON para el Job Summary de CI)
+tests/reports/
+
+# Playwright (cuando se incorpore el job E2E)
+/test-results/
+/playwright-report/
+/playwright/.cache/
