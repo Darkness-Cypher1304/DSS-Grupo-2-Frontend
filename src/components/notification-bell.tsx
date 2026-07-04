@@ -6,8 +6,9 @@
 // Sin WebSocket (Render free-tier no lo sostiene): react-query hace polling del
 // contador de no leídas cada 30s. El listado se trae solo al abrir el panel.
 // Al hacer clic en una notificación de consulta, navega al detalle y la marca
-// como leída. Los helpers van INLINE (no en src/lib) para no afectar el gate de
-// cobertura, que mide únicamente src/lib/**/*.ts.
+// como leída. El helper `formatRelative` se exporta para testearlo como unidad
+// pura; el resto del comportamiento (polling, panel, mutaciones) se valida con
+// tests de integración (React Testing Library + MSW).
 // ============================================================================
 
 import { useEffect, useRef, useState } from 'react';
@@ -164,8 +165,9 @@ export function NotificationBell() {
   );
 }
 
-// Tiempo relativo en español (inline a propósito; ver cabecera del archivo).
-function formatRelative(iso: string): string {
+// Tiempo relativo en español. Exportado para poder testearlo como unidad pura
+// (función determinista con varias ramas), sin montar todo el componente.
+export function formatRelative(iso: string): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return '';
   const diffMin = Math.floor((Date.now() - then) / 60_000);
