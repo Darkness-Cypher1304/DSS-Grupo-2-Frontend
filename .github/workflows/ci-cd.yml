@@ -98,15 +98,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Historial completo para calcular la cobertura de código nuevo (patch)
+          # comparando contra la rama base.
+          fetch-depth: 0
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'npm'
       - run: npm ci
-      - name: Tests + cobertura (gate 85%)
+      # GATE autoritativo: suite completa (unit + integration) con cobertura
+      # combinada. El coverageThreshold de Jest (85% en las 4 métricas) hace
+      # fallar este paso -y el job- si no se cumple.
+      - name: Tests + cobertura combinada (GATE 85%)
         run: npm run test:coverage -- --ci
-      - name: Tabla de cobertura en el Job Summary
+      # SOLO para enriquecer el reporte: cobertura por tipo de test. No afecta al
+      # gate (|| true) ni a los jobs Unit/Integration (que quedan intactos).
+      - name: Cobertura por tipo (unit / integration) — solo reporte
+        if: always()
+        run: |
+          npx jest tests/unit --coverage --coverageDirectory=tests/reports/cov-unit --coverageReporters=json-summary --ci || true
+          npx jest tests/integration --coverage --coverageDirectory=tests/reports/cov-integration --coverageReporters=json-summary --ci || true
+      - name: Reporte de cobertura en el Job Summary
         if: always()
         run: node .github/scripts/coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
 

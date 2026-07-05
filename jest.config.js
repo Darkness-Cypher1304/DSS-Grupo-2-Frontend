@@ -97,7 +97,10 @@ const customJestConfig = {
   ],
 
   coverageDirectory: '<rootDir>/tests/reports/coverage',
-  coverageReporters: ['text', 'text-summary', 'json-summary', 'lcov'],
+  // json-summary -> totales por archivo (reporte del Job Summary);
+  // json         -> coverage-final.json con detalle POR LÍNEA (patch coverage y
+  //                 líneas sin cubrir en el reporte); lcov/text -> legibilidad.
+  coverageReporters: ['text', 'text-summary', 'json-summary', 'json', 'lcov'],
 
   // Coverage Gate: mínimo aprobado por el proyecto = 85% en las 4 métricas.
   coverageThreshold: {
