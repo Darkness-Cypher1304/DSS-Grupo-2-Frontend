@@ -45,7 +45,6 @@ const out = [];
 const w = (s = '') => out.push(s);
 const short = (f) => f.replace(/\\/g, '/').replace(/.*\/src\//, 'src/');
 const files = (summary) => Object.keys(summary).filter((k) => k !== 'total');
-const pct = (n) => (Number.isFinite(n) ? n.toFixed(2) : '—');
 const gateOf = (t) => METRICS.every((m) => t[m].pct >= MIN);
 const coveredFileCount = (s) => (s ? files(s).filter((f) => s[f].statements.covered > 0).length : 0);
 
@@ -70,20 +69,52 @@ w('');
 // ---------------------------------------------------------------------------
 // 2) Cobertura por tipo de test (+ gate por tipo)
 // ---------------------------------------------------------------------------
+// Cobertura sobre la HUELLA de cada suite: solo los archivos que ejercita
+// (statements.covered>0). Evita el sesgo de medir, p. ej., unit contra páginas
+// que no le corresponden (esas las cubre integration, según la pirámide).
+// `total` = cobertura conjunta de las 4 métricas (Σcubierto / Σtotal) sobre la huella.
+function footprintCov(s) {
+  const touched = files(s).filter((f) => s[f].statements.covered > 0);
+  const agg = {};
+  let sumCov = 0;
+  let sumTot = 0;
+  for (const m of METRICS) {
+    let cov = 0;
+    let tot = 0;
+    for (const f of touched) {
+      cov += s[f][m].covered;
+      tot += s[f][m].total;
+    }
+    agg[m] = tot === 0 ? 100 : (cov / tot) * 100;
+    sumCov += cov;
+    sumTot += tot;
+  }
+  return { agg, total: sumTot === 0 ? 100 : (sumCov / sumTot) * 100, n: touched.length };
+}
+const sharedFiles =
+  unit && integration
+    ? files(unit).filter((f) => unit[f].statements.covered > 0 && integration[f]?.statements.covered > 0).length
+    : null;
+const uN = coveredFileCount(unit);
+const iN = coveredFileCount(integration);
+const cN = coveredFileCount(combined);
+
 w('### 🧪 Cobertura por tipo de test\n');
-w('| Tipo de test | % Stmts | % Branch | % Funcs | % Lines | Gate 85% | Archivos |');
+w('| Tipo de test | % Stmts | % Branch | % Funcs | % Lines | % Total | Archivos |');
 w('|---|:--:|:--:|:--:|:--:|:--:|:--:|');
 const typeRow = (name, s) => {
   if (!s) return `| ${name} | — | — | — | — | — | — |`;
-  const t = s.total;
-  const gate = gateOf(t) ? '✅' : '❌';
-  return `| ${name} | ${pct(t.statements.pct)} | ${pct(t.branches.pct)} | ${pct(t.functions.pct)} | ${pct(t.lines.pct)} | ${gate} | ${coveredFileCount(s)} |`;
+  const { agg, total, n } = footprintCov(s);
+  return `| ${name} | ${agg.statements.toFixed(1)} | ${agg.branches.toFixed(1)} | ${agg.functions.toFixed(1)} | ${agg.lines.toFixed(1)} | **${total.toFixed(1)}** | ${n} |`;
 };
 w(typeRow('Unit', unit));
 w(typeRow('Integration', integration));
 w(typeRow('**Combinada (gate)**', combined));
 w('');
-w('> El gate solo se **exige** sobre *Combinada*; el `Gate 85%` por tipo es diagnóstico (ver *Glosario*). Los conjuntos de archivos se **solapan** → *Combinada* = unión, no suma.');
+w('> % por **huella** (archivos que cada suite ejercita); **% Total** = cobertura conjunta de sus 4 métricas. El gate del 85% se exige solo sobre *Combinada*.');
+if (sharedFiles !== null) {
+  w(`> **${sharedFiles}** archivos se ejercitan por Unit *y* Integration; por eso ${uN} + ${iN} no son ${uN + iN}: al contar sin repetir (unión) quedan **${cN}** archivos únicos = *Combinada*.`);
+}
 w('');
 
 // ---------------------------------------------------------------------------
@@ -158,7 +189,8 @@ w(perFileDetails('Cobertura por archivo (combinada)', combined, false));
 w('### 📖 Glosario y notas\n');
 w('- **Patch coverage**: % de líneas nuevas/modificadas por *este* cambio que quedan cubiertas por tests (métrica estrella de SonarQube). Asegura que **lo nuevo** se prueba sin exigir recobertura del histórico. Aquí es informativa, **no bloquea**.');
 w('- **Combinada**: unión de la cobertura de *unit* + *integration*; es la única fila sobre la que se **exige** el gate del 85%.');
-w('- **Gate 85% por tipo (diagnóstico)**: *unit* da bajo porque se mide sobre toda la superficie pero apunta a `lib/` y `components/`; las páginas las cubre *integration* (pirámide de testing). Que ambas den ❌ por separado y *Combinada* dé ✅ es lo esperado.');
+w('- **Huella (por tipo)**: *unit* e *integration* se miden solo sobre los archivos que cada una ejercita, no sobre toda la superficie; así *unit* (que apunta a `lib/`+`components/`) no se penaliza por no cubrir páginas —eso es tarea de *integration*, según la pirámide—.');
+w('- **% Total (por tipo)**: resume en un número la cobertura de esa suite = elementos cubiertos ÷ elementos totales de las 4 métricas juntas, sobre su huella.');
 w('- **Branches**: caminos de decisión (`if/else`, `?:`, `&&`); es la métrica más exigente y suele ser la que limita el gate.');
 
 console.log(out.join('\n'));
