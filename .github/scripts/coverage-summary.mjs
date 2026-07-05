@@ -1,25 +1,20 @@
 // ============================================================================
-// coverage-summary.mjs — Reporte de cobertura enriquecido para el Job Summary
+// coverage-summary.mjs — Reporte de cobertura para el Job Summary (multivista)
 // ----------------------------------------------------------------------------
-// Genera (a stdout, redirigido a $GITHUB_STEP_SUMMARY) un reporte multivista:
-//   1. Coverage Gate (combinada) + veredicto 85%          [autoritativo]
-//   2. Cobertura global combinada (tabla)
-//   3. Cobertura por tipo de test (unit / integration / combinada)  [diagnóstico]
-//   4. Patch coverage: cobertura de las líneas NUEVAS vs main (estilo SonarQube)
-//   5. Cobertura por capa/directorio
-//   6. Focos de atención (menor % de ramas + líneas sin cubrir)
-//   7. Distribución de archivos por rango de cobertura de líneas
-//   8. Detalle por archivo: Unit / Integration / Combinada (colapsables)
-//   9. Glosario breve
+// Genera (a stdout → $GITHUB_STEP_SUMMARY) un reporte orientado a estadísticas:
+//   1. Coverage Gate (mínimo 85%): veredicto + cobertura global combinada
+//   2. Cobertura por tipo de test (unit / integration / combinada) + gate por tipo
+//   3. Patch coverage: cobertura de líneas NUEVAS vs base (estilo SonarQube)
+//   4. Focos de atención (menor % de ramas + líneas sin cubrir)
+//   5. Distribución de archivos por rango de cobertura de líneas
+//   6. Detalle por archivo: Unit / Integration / Combinada (colapsables)
+//   7. Glosario y notas (explicaciones consolidadas al final)
 //
-// IMPORTANTE: este script SOLO reporta. El gate lo aplica Jest (coverageThreshold)
-// en la corrida combinada; aquí nada modifica el veredicto.
+// SOLO reporta. El gate lo aplica Jest (coverageThreshold) en la corrida
+// combinada; aquí nada modifica el veredicto.
 //
-// Entradas (generadas por el job Coverage Gate):
-//   tests/reports/coverage/coverage-summary.json   (combinada, por archivo)
-//   tests/reports/coverage/coverage-final.json     (combinada, por línea)
-//   tests/reports/cov-unit/coverage-summary.json   (solo unit)      [opcional]
-//   tests/reports/cov-integration/coverage-summary.json (solo integ) [opcional]
+// Nota de consistencia: Unit(11) + Integration(36) NO suman Combinada(38) porque
+// los conjuntos SE SOLAPAN (9 archivos en ambas). Combinada = UNIÓN, no suma.
 // ============================================================================
 import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
@@ -48,47 +43,21 @@ if (!combined) {
 
 const out = [];
 const w = (s = '') => out.push(s);
-
-// Normaliza una ruta a "src/..." para mostrarla corta y estable.
 const short = (f) => f.replace(/\\/g, '/').replace(/.*\/src\//, 'src/');
-
-// Clasifica un archivo en una "capa" para la vista agregada.
-function layerOf(file) {
-  const f = short(file);
-  if (f.startsWith('src/lib/')) return 'lib';
-  if (f.startsWith('src/components/')) return 'components';
-  if (f.startsWith('src/app/(auth)/')) return 'app · auth';
-  if (f.startsWith('src/app/(parent)/')) return 'app · parent';
-  if (f.startsWith('src/app/(specialist)/')) return 'app · specialist';
-  if (f.startsWith('src/app/(admin)/')) return 'app · admin';
-  if (f.startsWith('src/app/articles/')) return 'app · articles';
-  return 'otros';
-}
-
 const files = (summary) => Object.keys(summary).filter((k) => k !== 'total');
 const pct = (n) => (Number.isFinite(n) ? n.toFixed(2) : '—');
+const gateOf = (t) => METRICS.every((m) => t[m].pct >= MIN);
+const coveredFileCount = (s) => (s ? files(s).filter((f) => s[f].statements.covered > 0).length : 0);
 
 // ---------------------------------------------------------------------------
-// 1) Coverage Gate (combinada) — bloque autoritativo
+// 1) Coverage Gate + cobertura global combinada
 // ---------------------------------------------------------------------------
 const total = combined.total;
-const gatePass = METRICS.every((m) => total[m].pct >= MIN);
+const gatePass = gateOf(total);
 
-w('## 🎯 Coverage Gate\n');
-w('```');
-w('==========================================');
-w(`UNIT + INTEGRATION · COVERAGE (mínimo ${MIN}%)`);
-w('==========================================');
-for (const m of METRICS) {
-  w(`${LABEL[m].padEnd(12)}: ${total[m].pct.toFixed(2).padStart(6)}%  ${total[m].pct >= MIN ? 'OK' : 'FAIL'}`);
-}
-w('------------------------------------------');
-w(`Coverage Gate (${MIN}%): ${gatePass ? 'PASSED ✅' : 'FAILED ❌'}`);
-w('```\n');
+w('## 🎯 Coverage Gate (mínimo 85%)\n');
+w(`**Coverage Gate (${MIN}%): ${gatePass ? 'PASSED ✅' : 'FAILED ❌'}**\n`);
 
-// ---------------------------------------------------------------------------
-// 2) Cobertura global combinada
-// ---------------------------------------------------------------------------
 w('### Cobertura global (combinada)\n');
 w('| Métrica | Cobertura | Cubierto/Total | ≥85% |');
 w('|---|:--:|:--:|:--:|');
@@ -99,29 +68,26 @@ for (const m of METRICS) {
 w('');
 
 // ---------------------------------------------------------------------------
-// 3) Cobertura por tipo de test (diagnóstico)
+// 2) Cobertura por tipo de test (+ gate por tipo)
 // ---------------------------------------------------------------------------
-const coveredFileCount = (summary) =>
-  summary ? files(summary).filter((f) => summary[f].statements.covered > 0).length : 0;
-
 w('### 🧪 Cobertura por tipo de test\n');
-w('| Tipo de test | % Stmts | % Branch | % Funcs | % Lines | Archivos cubiertos |');
-w('|---|:--:|:--:|:--:|:--:|:--:|');
-const typeRow = (name, s) =>
-  s
-    ? `| ${name} | ${pct(s.total.statements.pct)} | ${pct(s.total.branches.pct)} | ${pct(s.total.functions.pct)} | ${pct(s.total.lines.pct)} | ${coveredFileCount(s)} |`
-    : `| ${name} | — | — | — | — | — |`;
+w('| Tipo de test | % Stmts | % Branch | % Funcs | % Lines | Gate 85% | Archivos |');
+w('|---|:--:|:--:|:--:|:--:|:--:|:--:|');
+const typeRow = (name, s) => {
+  if (!s) return `| ${name} | — | — | — | — | — | — |`;
+  const t = s.total;
+  const gate = gateOf(t) ? '✅' : '❌';
+  return `| ${name} | ${pct(t.statements.pct)} | ${pct(t.branches.pct)} | ${pct(t.functions.pct)} | ${pct(t.lines.pct)} | ${gate} | ${coveredFileCount(s)} |`;
+};
 w(typeRow('Unit', unit));
 w(typeRow('Integration', integration));
 w(typeRow('**Combinada (gate)**', combined));
 w('');
-w('> El **gate** se evalúa solo sobre la fila **Combinada**. Las filas por tipo son *diagnósticas*.');
-w('> El % global de **Unit** se ve bajo **a propósito**: se mide sobre toda la superficie, pero las pruebas unitarias apuntan a `lib/` y `components/` (donde rinden 90–100%, ver el detalle por archivo); no ejecutan las páginas —eso es tarea de Integration, fiel a la pirámide—.');
-w('> El % de **Integration** es informativo: su valor real es que el job **pase** validando flujos de usuario, no maximizar un porcentaje.');
+w('> El gate solo se **exige** sobre *Combinada*; el `Gate 85%` por tipo es diagnóstico (ver *Glosario*). Los conjuntos de archivos se **solapan** → *Combinada* = unión, no suma.');
 w('');
 
 // ---------------------------------------------------------------------------
-// 4) Patch coverage — cobertura de líneas nuevas vs main (estilo SonarQube)
+// 3) Patch coverage — cobertura de líneas nuevas vs base (estilo SonarQube)
 // ---------------------------------------------------------------------------
 w('### 🆕 Cobertura de código nuevo (patch)\n');
 const patch = computePatchCoverage(finalCov);
@@ -130,44 +96,18 @@ if (patch === null) {
 } else if (patch.newLines === 0) {
   w('> **N/A** — este cambio no incorpora líneas de código de producción (`src/**`) nuevas o modificadas.');
 } else {
-  const ok = patch.coverage >= MIN;
-  w(`Líneas nuevas/modificadas en \`src/**\`: **${patch.newLines}** · cubiertas: **${patch.covered}** → **${patch.coverage.toFixed(2)}%** ${ok ? '✅' : '⚠️'}`);
+  w(`Líneas nuevas/modificadas en \`src/**\`: **${patch.newLines}** · cubiertas: **${patch.covered}** → **${patch.coverage.toFixed(2)}%** ${patch.coverage >= MIN ? '✅' : '⚠️'}`);
   if (patch.byFile.length) {
     w('');
     w('| Archivo | Líneas nuevas | Cubiertas | % patch |');
     w('|---|:--:|:--:|:--:|');
-    for (const f of patch.byFile) {
-      w(`| ${f.file} | ${f.total} | ${f.covered} | ${f.pct.toFixed(1)}% |`);
-    }
+    for (const f of patch.byFile) w(`| ${f.file} | ${f.total} | ${f.covered} | ${f.pct.toFixed(1)}% |`);
   }
-}
-w('');
-w('> *Patch coverage* = % de líneas nuevas/modificadas por este cambio que quedan cubiertas por tests. Es la métrica que prioriza SonarQube: asegura que **lo nuevo** se prueba, sin exigir recobertura de todo el histórico. Aquí es **informativa** (no bloquea).');
-w('');
-
-// ---------------------------------------------------------------------------
-// 5) Cobertura por capa/directorio
-// ---------------------------------------------------------------------------
-w('### 🧱 Cobertura por capa\n');
-const layers = {};
-for (const f of files(combined)) {
-  const L = (layers[layerOf(f)] ??= { n: 0, statements: [0, 0], branches: [0, 0], functions: [0, 0], lines: [0, 0] });
-  L.n += 1;
-  for (const m of METRICS) {
-    L[m][0] += combined[f][m].covered;
-    L[m][1] += combined[f][m].total;
-  }
-}
-const layerPct = (pair) => (pair[1] === 0 ? 100 : (pair[0] / pair[1]) * 100);
-w('| Capa | Archivos | % Stmts | % Branch | % Funcs | % Lines |');
-w('|---|:--:|:--:|:--:|:--:|:--:|');
-for (const [name, L] of Object.entries(layers).sort((a, b) => layerPct(a[1].branches) - layerPct(b[1].branches))) {
-  w(`| ${name} | ${L.n} | ${layerPct(L.statements).toFixed(1)} | ${layerPct(L.branches).toFixed(1)} | ${layerPct(L.functions).toFixed(1)} | ${layerPct(L.lines).toFixed(1)} |`);
 }
 w('');
 
 // ---------------------------------------------------------------------------
-// 6) Focos de atención — menor % de ramas + líneas sin cubrir
+// 4) Focos de atención — menor % de ramas + líneas sin cubrir
 // ---------------------------------------------------------------------------
 const uncoveredByFile = buildUncoveredMap(finalCov);
 const offenders = files(combined)
@@ -182,14 +122,14 @@ if (offenders.length) {
   w('|---|:--:|:--:|---|');
   for (const r of offenders) {
     const u = uncoveredByFile.get(r.key) ?? [];
-    const shown = u.slice(0, 8).join(', ') + (u.length > 8 ? `, … (+${u.length - 8})` : '') || '—';
+    const shown = (u.slice(0, 8).join(', ') + (u.length > 8 ? `, … (+${u.length - 8})` : '')) || '—';
     w(`| ${r.file} | ${r.b.toFixed(1)} | ${r.l.toFixed(1)} | ${shown} |`);
   }
   w('');
 }
 
 // ---------------------------------------------------------------------------
-// 7) Distribución de archivos por rango de cobertura de líneas
+// 5) Distribución de archivos por rango de cobertura de líneas
 // ---------------------------------------------------------------------------
 const buckets = { '100%': 0, '90–99%': 0, '80–89%': 0, '<80%': 0 };
 for (const f of files(combined)) {
@@ -206,30 +146,26 @@ w(`| ${buckets['100%']} | ${buckets['90–99%']} | ${buckets['80–89%']} | ${bu
 w('');
 
 // ---------------------------------------------------------------------------
-// 8) Detalle por archivo — por tipo (colapsable)
+// 6) Detalle por archivo — por tipo (colapsable)
 // ---------------------------------------------------------------------------
 w(perFileDetails('Archivos cubiertos por Unit Tests', unit, true));
 w(perFileDetails('Archivos cubiertos por Integration Tests', integration, true));
 w(perFileDetails('Cobertura por archivo (combinada)', combined, false));
 
 // ---------------------------------------------------------------------------
-// 9) Glosario breve
+// 7) Glosario y notas (explicaciones consolidadas)
 // ---------------------------------------------------------------------------
-w('### 📖 Glosario (1 línea)\n');
-w('- **Statements**: sentencias ejecutables que corrieron al menos una vez.');
-w('- **Branches**: caminos de decisión (if/else, `?:`, `&&`) ejercitados; es la métrica más exigente.');
-w('- **Functions**: funciones/métodos invocados al menos una vez.');
-w('- **Lines**: líneas de código ejecutadas (similar a Statements, por línea física).');
-w('- **Patch / código nuevo**: cobertura solo sobre las líneas que este cambio agrega o modifica.');
-w('- **Combinada**: unión de la cobertura de unit + integration; es la base del gate.');
+w('### 📖 Glosario y notas\n');
+w('- **Patch coverage**: % de líneas nuevas/modificadas por *este* cambio que quedan cubiertas por tests (métrica estrella de SonarQube). Asegura que **lo nuevo** se prueba sin exigir recobertura del histórico. Aquí es informativa, **no bloquea**.');
+w('- **Combinada**: unión de la cobertura de *unit* + *integration*; es la única fila sobre la que se **exige** el gate del 85%.');
+w('- **Gate 85% por tipo (diagnóstico)**: *unit* da bajo porque se mide sobre toda la superficie pero apunta a `lib/` y `components/`; las páginas las cubre *integration* (pirámide de testing). Que ambas den ❌ por separado y *Combinada* dé ✅ es lo esperado.');
+w('- **Branches**: caminos de decisión (`if/else`, `?:`, `&&`); es la métrica más exigente y suele ser la que limita el gate.');
 
 console.log(out.join('\n'));
 
 // ===========================================================================
 // Helpers
 // ===========================================================================
-
-// Mapa file -> Map<line, hits> a partir de coverage-final.json (istanbul).
 function lineHitsOf(entry) {
   const hits = new Map();
   const sm = entry.statementMap ?? {};
@@ -237,13 +173,11 @@ function lineHitsOf(entry) {
   for (const id of Object.keys(sm)) {
     const ln = sm[id]?.start?.line;
     if (!ln) continue;
-    const prev = hits.get(ln) ?? 0;
-    hits.set(ln, Math.max(prev, s[id] ?? 0));
+    hits.set(ln, Math.max(hits.get(ln) ?? 0, s[id] ?? 0));
   }
   return hits;
 }
 
-// file(clave corta) -> [líneas sin cubrir]
 function buildUncoveredMap(final) {
   const map = new Map();
   if (!final) return map;
@@ -255,7 +189,6 @@ function buildUncoveredMap(final) {
   return map;
 }
 
-// Patch coverage: intersecta líneas nuevas (git diff) con la cobertura por línea.
 function computePatchCoverage(final) {
   if (!final) return null;
   let range;
@@ -281,7 +214,6 @@ function computePatchCoverage(final) {
     return null;
   }
 
-  // Líneas nuevas por archivo (número de línea en la versión nueva).
   const added = new Map();
   let current = null;
   for (const line of diff.split('\n')) {
@@ -299,7 +231,6 @@ function computePatchCoverage(final) {
     }
   }
 
-  // Mapa de coverage-final por ruta relativa "src/...".
   const finalByShort = new Map();
   for (const key of Object.keys(final)) finalByShort.set(short(key), lineHitsOf(final[key]));
 
@@ -307,20 +238,19 @@ function computePatchCoverage(final) {
   let coveredNew = 0;
   const byFile = [];
   for (const [file, lines] of added) {
-    const f = short(file);
-    const hits = finalByShort.get(f);
-    if (!hits) continue; // archivo nuevo excluido de la cobertura (glue) -> se ignora
+    const hits = finalByShort.get(short(file));
+    if (!hits) continue;
     let t = 0;
     let c = 0;
     for (const ln of lines) {
-      if (!hits.has(ln)) continue; // línea no ejecutable (comentario, tipo, JSX puro sin statement)
+      if (!hits.has(ln)) continue;
       t += 1;
       if (hits.get(ln) > 0) c += 1;
     }
     if (t > 0) {
       totalNew += t;
       coveredNew += c;
-      byFile.push({ file: f, total: t, covered: c, pct: (c / t) * 100 });
+      byFile.push({ file: short(file), total: t, covered: c, pct: (c / t) * 100 });
     }
   }
   byFile.sort((a, b) => a.pct - b.pct);
@@ -332,7 +262,6 @@ function computePatchCoverage(final) {
   };
 }
 
-// Bloque <details> con la tabla por archivo de un summary dado.
 function perFileDetails(title, summary, onlyCovered) {
   if (!summary) return '';
   const rows = files(summary)
@@ -349,9 +278,7 @@ function perFileDetails(title, summary, onlyCovered) {
   const lines = [`<details><summary>${title} (${rows.length})</summary>\n`];
   lines.push('| Archivo | % Stmts | % Branch | % Funcs | % Lines |');
   lines.push('|---|:--:|:--:|:--:|:--:|');
-  for (const r of rows) {
-    lines.push(`| ${r.file} | ${r.s.toFixed(1)} | ${r.b.toFixed(1)} | ${r.fu.toFixed(1)} | ${r.l.toFixed(1)} |`);
-  }
+  for (const r of rows) lines.push(`| ${r.file} | ${r.s.toFixed(1)} | ${r.b.toFixed(1)} | ${r.fu.toFixed(1)} | ${r.l.toFixed(1)} |`);
   lines.push('\n</details>\n');
   return lines.join('\n');
 }
