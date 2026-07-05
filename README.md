@@ -17,7 +17,7 @@ vive en el repositorio `DSS-Grupo-2` (backend NestJS).
 - **TanStack React Query** (estado de servidor) · **Axios** (cliente HTTP)
 - **react-hook-form** + **Zod** (formularios y validación)
 - **jspdf** (exportar el resultado del M-CHAT a PDF) · **react-markdown** (artículos)
-- **Jest** (pruebas) · Docker · GitHub Actions · Render
+- **Jest** + **React Testing Library** + **MSW** (tests unit e integración) · Docker · GitHub Actions · Render
 
 ---
 
@@ -38,6 +38,12 @@ src/
     auth-context.tsx       contexto de autenticación (login/register/logout/refresh)
     providers.tsx          React Query + AuthProvider
     utils.ts               utilidades
+
+tests/                     (hermana de src/ — ver sección «Testing»)
+  unit/                    unidades aisladas (lib, components, contexts, providers)
+  integration/             flujos con React Testing Library + MSW (API simulada)
+  mocks/ fixtures/ helpers/ setup/   dobles, datos, utilidades y arranque de tests
+  e2e/                     reservado para Playwright (fase futura)
 ```
 
 ---
@@ -78,21 +84,52 @@ en el bundle del navegador: **es pública, no debe contener secretos.**
 | `npm run dev` | Servidor de desarrollo |
 | `npm run build` / `npm start` | Compilar y ejecutar en producción |
 | `npm run lint` · `npm run type-check` | Calidad de código |
-| `npm test` · `npm run test:coverage` | Pruebas (Jest) y cobertura |
+| `npm test` | Toda la suite de tests (Jest) |
+| `npm run test:unit` · `npm run test:integration` | Tests unit / integración por separado |
+| `npm run test:coverage` | Cobertura combinada (aplica el **Coverage Gate 85%**) |
 | `npm run audit` | Auditoría de dependencias (`npm audit`) |
+
+---
+
+## Testing
+
+Arquitectura en `tests/` (hermana de `src/`), con separación **unit / integration**
+según la pirámide de testing (F.I.R.S.T., AAA, tests de **comportamiento**):
+
+- **Unit** (`tests/unit/`): lógica (`lib/`) y componentes en aislamiento.
+- **Integration** (`tests/integration/`): flujos reales con **React Testing Library**
+  y **MSW** (la API se simula, sin red).
+- **E2E** (`tests/e2e/`): **reservado** para Playwright (fase futura, aún no implementado).
+
+**Coverage Gate: mínimo 85%** en *statements/branches/functions/lines* sobre la
+cobertura **combinada** (lo aplica Jest vía `coverageThreshold`; **rompe el CI** si no
+se cumple). El pipeline publica un **reporte de cobertura multivista** en el resumen de
+GitHub Actions (global, por tipo de test, cobertura de código nuevo, focos de atención,
+distribución y detalle por archivo).
+
+```bash
+npm run test:unit          # solo unit
+npm run test:integration   # solo integración (RTL + MSW)
+npm run test:coverage      # suite combinada + Coverage Gate 85%
+```
 
 ---
 
 ## CI/CD (`.github/workflows/ci-cd.yml`)
 
-En cada `push`/`pull_request` a `main`:
+En cada `push`/`pull_request` a `main` (los jobs de deploy corren solo en `push`):
 
-1. **build-and-test** — `type-check`, `lint`, tests (Jest) con cobertura y `build` (Node 24).
-2. **codeql** — análisis estático de seguridad (SAST), en paralelo.
-3. **supply-chain** — **Trivy** (vulnerabilidades) + **SBOM** CycloneDX, en paralelo.
-4. **security-scan** — `npm audit`.
-5. **deploy-dev → smoke-test → dast (OWASP ZAP) → security-gate → deploy-prod**
-   (solo en `push`): despliegue a Render con escaneo dinámico y gate de seguridad.
+1. **quality** — `type-check` + `lint`.
+2. **unit-tests** ∥ **integration-tests** — jobs **separados y en paralelo**; cada uno
+   publica su resumen (suites/tests/duración) en el *job summary*.
+3. **coverage-gate** — suite combinada + **Coverage Gate 85%** (falla el CI si no se
+   cumple) + reporte de cobertura multivista.
+4. **codeql** (SAST) ∥ **supply-chain** (Trivy + SBOM) — en paralelo.
+5. **dependency-scan** — `npm audit`.
+6. **build** (Node 24, con `NEXT_PUBLIC_API_URL`).
+7. **deploy-dev → smoke-test → dast (OWASP ZAP) → security-gate → deploy-prod**:
+   despliegue a Render con escaneo dinámico y gate de seguridad.
+   *(Hay un job de **E2E reservado** entre smoke-test y dast, aún inactivo.)*
 
 ### Despliegue (Render)
 
