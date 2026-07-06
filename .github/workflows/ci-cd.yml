@@ -190,8 +190,10 @@ jobs:
           retention-days: 90
 
   # ---------------------------------------------------- Dependency Scan
-  # npm audit (bloqueante en HIGH). Va tras el gate de cobertura y CodeQL, como
-  # ultima verja de dependencias antes de construir/desplegar.
+  # Gate BLOQUEANTE de npm audit en dependencias de PRODUCCION (OWASP A06), en
+  # paridad con el backend. Falla ante HIGH/CRITICAL salvo excepcion documentada
+  # y vigente en .github/audit-allowlist.json. Va tras el gate de cobertura y
+  # CodeQL, como ultima verja de dependencias antes de construir/desplegar.
   dependency-scan:
     name: Dependency Scan (npm audit)
     needs: [coverage-gate, codeql]
@@ -204,8 +206,11 @@ jobs:
           node-version: '24'
           cache: 'npm'
       - run: npm ci
-      - name: Security audit (produccion)
-        run: npm audit --omit=dev --audit-level=high
+      - name: Gate de dependencias de produccion (bloqueante + allowlist)
+        shell: bash
+        run: |
+          set -o pipefail
+          node .github/scripts/audit-gate.mjs | tee -a "$GITHUB_STEP_SUMMARY"
 
   # -------------------------------------------------------------- Build
   build:
