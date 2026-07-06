@@ -15,20 +15,63 @@ permissions:
   security-events: write
 
 # ============================================================================
-# Flujo (Fases 10-11):
-#   Checkout -> Install -> Type Check + Lint (quality)
-#     -> Unit Tests -> Integration Tests -> Coverage Gate (85% en 4 metricas)
-#     -> [ SAST CodeQL  ||  Supply Chain Trivy+SBOM  ||  Dependency Scan npm audit ]
-#     -> Build -> Deploy DEV -> Smoke -> (E2E Playwright: reservado) -> DAST
-#     -> Security Gate -> Deploy PROD
+# ARQUITECTURA (versión final — NeuroAlert frontend) · PARIDAD con el backend.
+# ----------------------------------------------------------------------------
+# Organizada por OBJETIVO (fail-fast + DevSecOps + pirámide de testing). Adaptada
+# a un frontend Next.js: Node 24, sin Prisma, `next build`/`next lint`, y el e2e
+# es Playwright (reservado; se activará en un PR dedicado).
 #
+#   ═══════════════ FASE CI (push Y pull_request) ═══════════════
+#   Etapa 1 · CALIDAD & BUILD
+#     └─ Calidad · Code Quality & Build   (type-check · next lint · next build)
+#                     │
+#        ┌────────────┴───────────────────────────┐
+#        ▼                                         ▼
+#   Etapa 2 · SAST (código propio)          Etapa 3 · SCA (dependencias)
+#     ├─ SAST · CodeQL (JS/TS)  [security-extended]   ├─ SCA · Supply Chain (Trivy+SBOM)  [report-only]
+#     ├─ Seguridad CI · CodeQL (Actions)              └─ SCA · Dependency Audit Gate (npm)  [BLOQUEANTE]
+#     └─ SAST · ESLint Security  [BLOQUEANTE]
+#        └────────────┬───────────────────────────┘
+#                     ▼  (tests esperan calidad + TODA la seguridad estática)
+#   Etapa 4 · PRUEBAS
+#     ├─ Unit Tests  ∥  Integration Tests   (contenido intacto)
+#     └────────┬────────┘
+#              ▼
+#        Coverage Gate 85%                   (contenido intacto)
+#
+#   ═══════════════ FASE CD (solo push a main) ═══════════════
+#              ▼
+#        Deploy a Desarrollo                 (needs: coverage-gate)
+#              ▼
+#        Health Check + Smoke Test (Dev)     (verificación reforzada del sitio)
+#              ▼
+#        ┌───────────────────────────┐
+#        ▼                           ▼
+#   DAST (OWASP ZAP)         E2E (Playwright · reservado)   ← paralelo (cuando se active)
+#        └───────────┬───────────────┘
+#                    ▼
+#   Security Gate · Reporte DAST (ZAP)
+#                    ▼
+#        Deploy a Producción
+#                    ▼
+#        Production Health Check          (paridad con el Health Check de Dev)
+#
+# NOTA (GitHub Actions): cada job corre en una VM nueva y aislada; no hay job
+# "setup" reutilizable → cada job repite checkout + setup-node(cache) + npm ci.
 # La cobertura NO se sube a Codecov: el gate lo aplica Jest (coverageThreshold) y
-# el resumen/tabla se publican en el propio run vía $GITHUB_STEP_SUMMARY.
+# el resumen/tabla se publican en el run vía $GITHUB_STEP_SUMMARY.
 # ============================================================================
 jobs:
-  # --------------------------------------------------------------- Calidad
-  quality:
-    name: Type Check & Lint
+  # ==========================================================================
+  # ETAPA 1 · CALIDAD & BUILD — primera barrera técnica (fail-fast).
+  # Fusiona el antiguo `quality` (type-check + lint) con el `build`, que antes
+  # corría tarde: no tiene sentido testear/desplegar si el proyecto ni compila.
+  #   · type-check (tsc --noEmit): seguridad de tipos (fail-fast barato).
+  #   · lint (next lint): calidad + reglas de Next/React.
+  #   · build (next build): compila el sitio (necesita NEXT_PUBLIC_API_URL).
+  # ==========================================================================
+  code-quality-build:
+    name: Calidad · Code Quality & Build (type-check + lint + build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -42,93 +85,22 @@ jobs:
         run: npm run type-check
       - name: Lint
         run: npm run lint
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
-  # ------------------------------------------------------------ Unit Tests
-  # Job propio para feedback rapido de la base de la piramide.
-  unit-tests:
-    name: Unit Tests
-    needs: quality
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: '24'
-          cache: 'npm'
-      - run: npm ci
-      - name: Ejecutar unit tests
-        run: |
-          mkdir -p tests/reports
-          npm run test:unit -- --ci --json --outputFile=tests/reports/unit-results.json
-      - name: Resumen de Unit Tests
-        if: always()
-        run: node .github/scripts/test-summary.mjs tests/reports/unit-results.json "Unit Tests" >> "$GITHUB_STEP_SUMMARY"
-
-  # ----------------------------------------------------- Integration Tests
-  # RTL + MSW (API simulada). Corre ANTES del build para fallar rapido, en su
-  # propio job (respeta la separacion Unit / Integration).
-  integration-tests:
-    name: Integration Tests
-    needs: quality
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: '24'
-          cache: 'npm'
-      - run: npm ci
-      - name: Ejecutar integration tests
-        run: |
-          mkdir -p tests/reports
-          npm run test:integration -- --ci --json --outputFile=tests/reports/integration-results.json
-      - name: Resumen de Integration Tests
-        if: always()
-        run: node .github/scripts/test-summary.mjs tests/reports/integration-results.json "Integration Tests" >> "$GITHUB_STEP_SUMMARY"
-
-  # ---------------------------------------------------------- Coverage Gate
-  # Corre la suite COMPLETA (unit + integration) con cobertura combinada y aplica
-  # el umbral del 85% en Statements/Branches/Functions/Lines (coverageThreshold de
-  # Jest -> falla el job si no se cumple). Publica la tabla en el Job Summary.
-  coverage-gate:
-    name: Coverage Gate (85%)
-    needs: [unit-tests, integration-tests]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          # Historial completo para calcular la cobertura de código nuevo (patch)
-          # comparando contra la rama base.
-          fetch-depth: 0
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: '24'
-          cache: 'npm'
-      - run: npm ci
-      # GATE autoritativo: suite completa (unit + integration) con cobertura
-      # combinada. El coverageThreshold de Jest (85% en las 4 métricas) hace
-      # fallar este paso -y el job- si no se cumple.
-      - name: Tests + cobertura combinada (GATE 85%)
-        run: npm run test:coverage -- --ci
-      # SOLO para enriquecer el reporte: cobertura por tipo de test. No afecta al
-      # gate (|| true) ni a los jobs Unit/Integration (que quedan intactos).
-      - name: Cobertura por tipo (unit / integration) — solo reporte
-        if: always()
-        run: |
-          npx jest tests/unit --coverage --coverageDirectory=tests/reports/cov-unit --coverageReporters=json-summary --ci || true
-          npx jest tests/integration --coverage --coverageDirectory=tests/reports/cov-integration --coverageReporters=json-summary --ci || true
-      - name: Reporte de cobertura en el Job Summary
-        if: always()
-        run: node .github/scripts/coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
-
-  # --------------------------------------------------------------- SAST
-  # CodeQL corre EN PARALELO (sin needs): analisis estatico de seguridad.
-  # No bloquea el deploy a proposito (reporta al tab Security).
+  # ==========================================================================
+  # ETAPA 2 · SAST (seguridad del CÓDIGO propio) + Seguridad de CI.
+  # CodeQL es el SAST semántico de referencia (dataflow/taint tracking) y sube
+  # sus hallazgos a GitHub Security → Code scanning. La matriz cubre DOS
+  # objetivos: `javascript-typescript` (código de la app, suite `security-extended`)
+  # y `actions` (los propios workflows). Coexiste con ESLint-security (SAST
+  # sintáctico de feedback rápido) en un job aparte. No bloquean el deploy (CodeQL
+  # reporta al tab Security); ESLint-security SÍ es bloqueante.
+  # ==========================================================================
   codeql:
-    name: CodeQL (${{ matrix.language }})
+    name: ${{ matrix.display }}
     runs-on: ubuntu-latest
     permissions:
       security-events: write
@@ -138,7 +110,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [javascript-typescript, actions]
+        include:
+          - language: javascript-typescript
+            display: 'SAST · CodeQL (JavaScript/TypeScript)'
+            queries: security-extended
+          - language: actions
+            display: 'Seguridad CI · CodeQL (Actions)'
+            queries: ''
     steps:
       - uses: actions/checkout@v5
       - name: Initialize CodeQL
@@ -146,15 +124,40 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: none
+          queries: ${{ matrix.queries }}
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"
 
-  # ------------------------------------------------------- Supply Chain
+  # SAST de patrones inseguros (eslint-plugin-security). BLOQUEANTE (--max-warnings 0).
+  # Config SEPARADA (eslint.security.config.js) de la de calidad (`next lint`):
+  # distinta responsabilidad. Complementa a CodeQL con feedback rápido a velocidad
+  # de lint (paridad con el backend; recomendación del curso: eslint-security + CodeQL).
+  eslint-security:
+    name: SAST · ESLint Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      - name: ESLint Security (bloqueante)
+        run: npm run lint:security
+
+  # ==========================================================================
+  # ETAPA 3 · SCA (seguridad de DEPENDENCIAS / cadena de suministro).
+  # Distinta de la Etapa 2: no analiza el código propio sino el árbol de
+  # dependencias. Ambos jobs corren en paralelo, sin `needs`, y (como conjunto
+  # con la Etapa 2) gatean las pruebas: shift-left security.
+  # ==========================================================================
+
   # Trivy fs (report-only) + SBOM CycloneDX. En paralelo, no bloquea.
   supply-chain:
-    name: Supply Chain - Trivy + SBOM
+    name: SCA · Supply Chain (Trivy + SBOM)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -189,14 +192,12 @@ jobs:
           path: sbom.cdx.json
           retention-days: 90
 
-  # ---------------------------------------------------- Dependency Scan
   # Gate BLOQUEANTE de npm audit en dependencias de PRODUCCION (OWASP A06), en
   # paridad con el backend. Falla ante HIGH/CRITICAL salvo excepcion documentada
-  # y vigente en .github/audit-allowlist.json. Va tras el gate de cobertura y
-  # CodeQL, como ultima verja de dependencias antes de construir/desplegar.
+  # y vigente en .github/audit-allowlist.json. Independiente (Etapa 3), gatea las
+  # pruebas junto con la seguridad estatica.
   dependency-scan:
-    name: Dependency Scan (npm audit)
-    needs: [coverage-gate, codeql]
+    name: SCA · Dependency Audit Gate (npm audit)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -212,10 +213,16 @@ jobs:
           set -o pipefail
           node .github/scripts/audit-gate.mjs | tee -a "$GITHUB_STEP_SUMMARY"
 
-  # -------------------------------------------------------------- Build
-  build:
-    name: Build
-    needs: [coverage-gate, dependency-scan]
+  # ==========================================================================
+  # ETAPA 4 · PRUEBAS.
+  # UNIT ∥ INTEGRATION — jobs SEPARADOS y en PARALELO (pirámide de testing).
+  # Esperan a Code Quality & Build Y a TODA la seguridad estática + SCA (no se
+  # testea si la seguridad bloqueante falló). Integración usa RTL + MSW (API
+  # simulada). Contenido de los tests: INTACTO.
+  # ==========================================================================
+  unit-tests:
+    name: Unit Tests
+    needs: [code-quality-build, codeql, eslint-security, supply-chain, dependency-scan]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -225,16 +232,83 @@ jobs:
           node-version: '24'
           cache: 'npm'
       - run: npm ci
-      - name: Build
-        run: npm run build
-        env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+      - name: Ejecutar unit tests
+        run: |
+          mkdir -p tests/reports
+          npm run test:unit -- --ci --json --outputFile=tests/reports/unit-results.json
+      - name: Resumen de Unit Tests
+        if: always()
+        run: node .github/scripts/test-summary.mjs tests/reports/unit-results.json "Unit Tests" >> "$GITHUB_STEP_SUMMARY"
 
-  # --------------------------------------------------------- Deploy DEV
+  integration-tests:
+    name: Integration Tests
+    needs: [code-quality-build, codeql, eslint-security, supply-chain, dependency-scan]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      - name: Ejecutar integration tests
+        run: |
+          mkdir -p tests/reports
+          npm run test:integration -- --ci --json --outputFile=tests/reports/integration-results.json
+      - name: Resumen de Integration Tests
+        if: always()
+        run: node .github/scripts/test-summary.mjs tests/reports/integration-results.json "Integration Tests" >> "$GITHUB_STEP_SUMMARY"
+
+  # ==========================================================================
+  # COVERAGE GATE — corre la suite COMBINADA (unit + integration) con cobertura y
+  # aplica el umbral del 85% en las 4 métricas (coverageThreshold de Jest → falla
+  # el job). La cobertura es propiedad del CÓDIGO: gatear sobre la combinada evita
+  # una pirámide invertida. Publica la tabla en el Job Summary. Contenido INTACTO.
+  # ==========================================================================
+  coverage-gate:
+    name: Coverage Gate (85%)
+    needs: [unit-tests, integration-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Historial completo para calcular la cobertura de código nuevo (patch)
+          # comparando contra la rama base.
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      # GATE autoritativo: suite completa (unit + integration) con cobertura
+      # combinada. El coverageThreshold de Jest (85% en las 4 métricas) hace
+      # fallar este paso -y el job- si no se cumple.
+      - name: Tests + cobertura combinada (GATE 85%)
+        run: npm run test:coverage -- --ci
+      # SOLO para enriquecer el reporte: cobertura por tipo de test. No afecta al
+      # gate (|| true) ni a los jobs Unit/Integration (que quedan intactos).
+      - name: Cobertura por tipo (unit / integration) — solo reporte
+        if: always()
+        run: |
+          npx jest tests/unit --coverage --coverageDirectory=tests/reports/cov-unit --coverageReporters=json-summary --ci || true
+          npx jest tests/integration --coverage --coverageDirectory=tests/reports/cov-integration --coverageReporters=json-summary --ci || true
+      - name: Reporte de cobertura en el Job Summary
+        if: always()
+        run: node .github/scripts/coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+
+  # ==========================================================================
+  # FASE CD — solo en push a main (deploy-dev tiene `if: main`; el resto de la
+  # cadena hereda esa condición por `needs`, así que en pull_request se salta).
+  # ==========================================================================
+
+  # DEPLOY DEV — depende SOLO del Coverage Gate (que ya arrastra calidad + build
+  # + seguridad estática + tests). Inmediatamente después del gate. Contenido INTACTO.
   deploy-dev:
-    if: github.event_name == 'push'
     name: Deploy a Desarrollo
-    needs: build
+    needs: [coverage-gate]
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Deploy DEV
@@ -244,44 +318,26 @@ jobs:
       - name: Esperar inicio de despliegue
         run: sleep 30
 
-  # ---------------------------------------------------------- Smoke Test
+  # ==========================================================================
+  # HEALTH CHECK + SMOKE TEST (Dev) — valida que el sitio DEV desplegado quedó
+  # operativo. Reforzado (script compartido health-check.sh): HTTP 200 + render
+  # Next.js real (marcador /_next/) como gate duro + cabeceras de seguridad
+  # (informativo). Read-only. Ver .github/scripts/health-check.sh.
+  # ==========================================================================
   smoke-test:
-    if: github.event_name == 'push'
-    name: Smoke Test en Dev
+    name: Health Check + Smoke Test en Dev
     needs: deploy-dev
     runs-on: ubuntu-latest
     steps:
-      - name: Verificar que Dev responde
-        run: |
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            STATUS=$(curl -L -s -o /dev/null -w "%{http_code}" "${{ secrets.DEV_URL }}")
-            if [[ $STATUS -eq 200 ]]; then
-              echo "Dev responde correctamente"
-              exit 0
-            fi
-            echo "Intento $i fallido (HTTP $STATUS)"
-            sleep 15
-          done
-          echo "Dev no respondio correctamente"
-          exit 1
+      - uses: actions/checkout@v5
+      - name: Health Check + Smoke Test reforzado (Dev)
+        run: bash .github/scripts/health-check.sh "${{ secrets.DEV_URL }}" "Dev"
 
-  # ------------------------------------------- E2E (Playwright) — RESERVADO
-  # Slot preparado para pruebas E2E reales contra el DEV desplegado (Playwright),
-  # como evolucion natural del pipeline. NO se ejecuta todavia (`if: false`).
-  # Al implementarlo: quitar el `if: false`, anadir los pasos de Playwright y
-  # cambiar el `needs` del job `dast` a `[e2e]` para encadenarlo tras E2E.
-  e2e:
-    name: E2E Tests (Playwright) — reservado
-    if: false
-    needs: smoke-test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Placeholder
-        run: echo "Reservado para Playwright (tests/e2e). Aun no implementado."
-
-  # --------------------------------------------------------------- DAST
+  # ==========================================================================
+  # DAST — OWASP ZAP contra la instancia DEV desplegada. Corre en PARALELO con el
+  # slot e2e (ambos dependen del smoke). Contenido INTACTO.
+  # ==========================================================================
   dast:
-    if: github.event_name == 'push'
     name: DAST - OWASP ZAP
     needs: smoke-test
     runs-on: ubuntu-latest
@@ -296,10 +352,35 @@ jobs:
           allow_issue_writing: false
           artifact_name: 'frontend-zap-report'
 
-  # ------------------------------------------------------- Security Gate
+  # ==========================================================================
+  # E2E (Playwright) — RESERVADO, reubicado en paralelo al DAST (como en el
+  # backend). ⚠️ EN CONSTRUCCIÓN: aún NO ejecuta Playwright (`if: false`); es el
+  # slot fundacional para el e2e real contra el DEV desplegado (evolución natural,
+  # tiene UI). Su ACTIVACIÓN va en un PR dedicado (instalar @playwright/test,
+  # escribir los specs). Al activarlo: quitar `if: false`, añadir los pasos de
+  # Playwright y **añadir `e2e` a los `needs` del `security-gate`** (`[dast, e2e]`)
+  # para que converjan. Mientras esté reservado NADIE depende de él (si lo hiciera,
+  # su `if:false` cascadearía skips a toda la cadena de deploy).
+  # ==========================================================================
+  e2e:
+    name: E2E (Playwright · reservado, en construcción)
+    if: false
+    needs: smoke-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder
+        run: echo "Reservado para Playwright (tests/e2e). Aún no implementado — se activa en un PR dedicado."
+
+  # ==========================================================================
+  # SECURITY GATE · Reporte DAST (ZAP) — evalúa el reporte del ZAP contra la
+  # política de seguridad. Contenido de la política: INTACTO (blacklist XSS
+  # 40012/40014, HIGH > 0, MEDIUM >= 3).
+  # NOTA de paridad: cuando se active el e2e (Playwright), cambiar `needs` a
+  # `[dast, e2e]` para que ambos converjan aquí (hoy solo `dast` porque el e2e
+  # está reservado con `if: false`).
+  # ==========================================================================
   security-gate:
-    if: github.event_name == 'push'
-    name: Security Gate
+    name: Security Gate · Reporte DAST (ZAP)
     needs: dast
     runs-on: ubuntu-latest
     steps:
@@ -307,7 +388,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-zap-report
-      - name: Evaluar política de seguridad
+      - name: Evaluar reporte DAST (ZAP) contra la política
         run: |
           python << 'EOF'
           import json
@@ -369,7 +450,6 @@ jobs:
 
   # -------------------------------------------------------- Deploy PROD
   deploy-prod:
-    if: github.event_name == 'push'
     name: Deploy a Produccion
     needs: security-gate
     runs-on: ubuntu-latest
@@ -378,3 +458,26 @@ jobs:
         run: |
           curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_PROD }}"
           echo "Deploy PROD triggered"
+
+  # ==========================================================================
+  # PRODUCTION HEALTH CHECK — validación FINAL del pipeline, en PARIDAD con el
+  # Health Check de Dev (mismo script compartido, contra la URL de PRODUCCIÓN).
+  # Confirma HTTP 200 + render Next.js real + cabeceras de seguridad. Read-only.
+  # ⚠️ Requiere el secret PROD_URL (URL del frontend en prod). Si NO está
+  # configurado, el job AVISA y pasa (exit 0) para no romper la demo; se activa
+  # en cuanto se defina PROD_URL. Ver .github/scripts/health-check.sh.
+  # ==========================================================================
+  production-health-check:
+    name: Production Health Check
+    needs: deploy-prod
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Health Check reforzado (Producción)
+        run: |
+          if [ -z "${{ secrets.PROD_URL }}" ]; then
+            echo "⚠️ Secret PROD_URL no configurado: se omite el health check de producción."
+            echo "   Configúralo (URL del frontend en prod) para activar esta verificación."
+            exit 0
+          fi
+          bash .github/scripts/health-check.sh "${{ secrets.PROD_URL }}" "Producción"
