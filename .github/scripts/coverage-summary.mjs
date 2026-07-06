@@ -53,9 +53,15 @@ const coveredFileCount = (s) => (s ? files(s).filter((f) => s[f].statements.cove
 // ---------------------------------------------------------------------------
 const total = combined.total;
 const gatePass = gateOf(total);
+// % combinada = cobertura conjunta de las 4 métricas globales (Σcubierto / Σtotal).
+const overallCovered = METRICS.reduce((a, m) => a + total[m].covered, 0);
+const overallTotal = METRICS.reduce((a, m) => a + total[m].total, 0);
+const overallPct = overallTotal === 0 ? 100 : (overallCovered / overallTotal) * 100;
 
 w('## 🎯 Coverage Gate (mínimo 85%)\n');
-w(`**Coverage Gate (${MIN}%): ${gatePass ? 'PASSED ✅' : 'FAILED ❌'}**\n`);
+w(
+  `**Coverage Gate (${MIN}%): ${gatePass ? 'PASSED ✅' : 'FAILED ❌'} — ${overallPct.toFixed(2)}% combinada / ${total.branches.pct.toFixed(2)}% branches**\n`,
+);
 
 w('### Cobertura global (combinada)\n');
 w('| Métrica | Cobertura | Cubierto/Total | ≥85% |');
