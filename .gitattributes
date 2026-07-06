@@ -1,0 +1,4 @@
+# Los scripts de shell DEBEN conservar saltos de línea LF: si se commitean con
+# CRLF (p. ej. editados en Windows), fallan al ejecutarse en los runners Linux
+# del CI (`$'\r': command not found`). Paridad con el backend.
+*.sh text eol=lf
