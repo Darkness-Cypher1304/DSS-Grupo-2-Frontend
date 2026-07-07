@@ -8,23 +8,21 @@ import { API, wrap } from '../../mocks/handlers';
 import { makeLoginResponse } from '../../fixtures/users';
 
 // ---------------------------------------------------------------------------
-// INTEGRATION — /admin: panel con pendientes de verificación y revisión
+// INTEGRATION — /admin: panel con el contenido pendiente de revisión
 // ---------------------------------------------------------------------------
 describe('AdminDashboard', () => {
-  it('muestra los especialistas pendientes y el contenido sin pendientes', async () => {
+  it('muestra el panel con el contenido pendiente de revisión', async () => {
     server.use(
       http.post(`${API}/auth/refresh`, () =>
         wrap(makeLoginResponse({}, { fullName: 'Admin Root', role: 'ADMIN' })),
       ),
-      http.get(`${API}/users/admin/specialists/pending`, () =>
-        wrap([{ id: 's1', user: { id: 'u1', email: 'a@a.pe', fullName: 'Dra. Ana' }, specialty: 'Pediatría', licenseNumber: 'CMP-1' }]),
+      http.get(`${API}/content/admin/pending`, () =>
+        wrap([{ id: 'c1', title: 'Artículo en revisión', author: { fullName: 'Dr. Autor' } }]),
       ),
-      http.get(`${API}/content/admin/pending`, () => wrap([])),
     );
     renderWithProviders(<AdminDashboard />);
 
     await waitFor(() => expect(screen.getByText('Admin')).toBeInTheDocument());
-    expect(await screen.findByText('Dra. Ana')).toBeInTheDocument();
-    expect(screen.getByText('✓ Sin artículos pendientes')).toBeInTheDocument();
+    expect(await screen.findByText('Artículo en revisión')).toBeInTheDocument();
   });
 });
