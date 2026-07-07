@@ -2,17 +2,10 @@
 
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, FileText, ShieldCheck, Users } from 'lucide-react';
+import { ArrowRight, FileText, Users } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth-context';
 import { apiGet } from '@/lib/api-client';
-
-interface PendingSpecialist {
-  id: string;
-  user: { id: string; email: string; fullName: string };
-  specialty: string;
-  licenseNumber: string;
-}
 
 interface PendingContent {
   id: string;
@@ -22,11 +15,6 @@ interface PendingContent {
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-
-  const { data: pendingSpecialists } = useQuery<PendingSpecialist[]>({
-    queryKey: ['admin-pending-specialists'],
-    queryFn: () => apiGet<PendingSpecialist[]>('/users/admin/specialists/pending'),
-  });
 
   const { data: pendingContent } = useQuery<PendingContent[]>({
     queryKey: ['admin-pending-content'],
@@ -47,13 +35,7 @@ export default function AdminDashboard() {
         </p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4 mb-10">
-        <Stat
-          label="Especialistas por verificar"
-          value={pendingSpecialists?.length ?? 0}
-          icon={<ShieldCheck size={20} />}
-          href="/admin/specialists"
-        />
+      <div className="grid md:grid-cols-2 gap-4 mb-10">
         <Stat
           label="Artículos por revisar"
           value={pendingContent?.length ?? 0}
@@ -68,23 +50,7 @@ export default function AdminDashboard() {
         />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <PreviewCard
-          title="Especialistas pendientes"
-          href="/admin/specialists"
-          isEmpty={!pendingSpecialists || pendingSpecialists.length === 0}
-          emptyMessage="✓ Sin solicitudes pendientes"
-        >
-          {pendingSpecialists?.slice(0, 5).map((s) => (
-            <div key={s.id} className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl hover:bg-bone-50">
-              <div className="text-sm flex-1 min-w-0">
-                <div className="font-medium truncate">{s.user.fullName}</div>
-                <div className="text-xs text-ink-fade">{s.specialty} · {s.licenseNumber}</div>
-              </div>
-            </div>
-          ))}
-        </PreviewCard>
-
+      <div className="grid gap-6">
         <PreviewCard
           title="Contenido pendiente"
           href="/admin/content"

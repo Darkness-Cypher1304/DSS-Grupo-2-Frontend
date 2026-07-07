@@ -10,7 +10,6 @@ import {
   BookOpen,
   MessageCircle,
   FileText,
-  ShieldCheck,
   Settings,
   LogOut,
 } from 'lucide-react';
@@ -52,7 +51,6 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
           <NavItem href="/signals" icon={<BookOpen size={18} />} label="Señales tempranas" />
           <NavItem href="/ask" icon={<MessageCircle size={18} />} label="Mis consultas" />
           <NavItem href="/resources" icon={<FileText size={18} />} label="Recursos" />
-          <NavItem href="/become-specialist" icon={<ShieldCheck size={18} />} label="Ser especialista" />
           <NavItem href="/cuenta" icon={<Settings size={18} />} label="Mi cuenta" />
         </nav>
 

@@ -107,7 +107,7 @@ describe('ApplicationFormPage', () => {
 
   it('envía la postulación completa y redirige a la confirmación', async () => {
     // FormData no viaja de forma fiable por el XHR de jsdom + MSW; mockeamos
-    // api.post en la frontera del cliente (ver become-specialist).
+    // api.post en la frontera del cliente.
     const postSpy = jest.spyOn(api, 'post').mockResolvedValue({ data: { data: {} } });
     const { container, user } = renderWithProviders(<ApplicationFormPage />, { withAuth: false });
 
