@@ -32,7 +32,8 @@ src/
     (admin)/               usuarios, solicitudes, contenido, bajas
     about/ articles/ specialists/   páginas públicas
     layout.tsx / template.tsx       layout global y transiciones de ruta
-  components/              UI reutilizable (loader, campana de notificaciones, etc.)
+  components/              UI reutilizable (marca centralizada `brand-logo`, loader
+                           de marca, campana de notificaciones, chrome público, skeletons…)
   lib/
     api-client.ts          cliente Axios (Bearer + refresh automático en 401)
     auth-context.tsx       contexto de autenticación (login/register/logout/refresh)
@@ -45,6 +46,32 @@ tests/                     (hermana de src/ — ver sección «Testing»)
   mocks/ fixtures/ helpers/ setup/   dobles, datos, utilidades y arranque de tests
   e2e/                     reservado para Playwright (fase futura)
 ```
+
+---
+
+## Diseño y sistema visual
+
+La capa visual vive en `src/app/globals.css` (tokens + utilidades sobre Tailwind) y en
+componentes de marca reutilizables, buscando una estética **clínica y cálida**, legible
+y coherente en todo el sitio.
+
+- **Paleta (tokens en `:root`):** hueso `--color-bone`, teal `--color-teal`, coral
+  `--color-coral` y tinta `--color-ink`, más las escalas de color de Tailwind
+  (teal / coral / amber) que se usan en acentos y badges.
+- **Utilidades de componente (`@layer components`):** botones (`.btn`, `.btn-primary`,
+  `.btn-secondary`, `.btn-coral`, `.btn-ghost`, `.btn-on-dark`), tarjetas (`.card`,
+  `.card-clinical`, `.card-flat`), paneles oscuros (`.panel-dark`, `.panel-darker`),
+  formularios (`.input`, `.label`), badges de riesgo M-CHAT (`.badge-low` / `.badge-medium`
+  / `.badge-high`), contenedores (`.container-narrow`, `.container-wide`) y detalles
+  tipográficos (`.eyebrow`, `.gradient-text`, `.tabular`, `.hairline`).
+- **Ambiente y movimiento:** fondos con aurora a la deriva (`.aurora`,
+  `.aurora--teal/coral/mint`), malla clínica (`.clinical-grid`), grano sutil
+  (`.grain-overlay`), transiciones de ruta (`.route-transition`) y skeletons de carga
+  (`.skeleton`). Todo el movimiento respeta **`prefers-reduced-motion`**.
+- **Marca:** el logo es un único componente, `src/components/brand-logo.tsx` —
+  `BrandLogo` (glifo + wordmark) y `BrandGlyph` (solo glifo), en tamaños `sm`/`md`/`lg`
+  y con la variante `onDark` para fondos oscuros. Es la **fuente única** del logo, para
+  que sea idéntico en todas las páginas.
 
 ---
 
