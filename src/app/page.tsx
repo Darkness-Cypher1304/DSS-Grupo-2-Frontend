@@ -118,9 +118,17 @@ function Header() {
 function Hero() {
   return (
     <section className="relative overflow-hidden">
-      {/* Fondo editorial con gradiente teal + rejilla clínica tenue */}
-      <div className="absolute inset-0 bg-gradient-to-br from-bone-50 via-teal-50/30 to-bone-100 -z-10" />
-      <div className="absolute inset-0 clinical-grid -z-10" />
+      {/* Fondo clínico luminoso + rejilla en retícula + resplandores de aurora */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white via-teal-50/40 to-bone-100 -z-10" />
+      <div
+        className="absolute inset-0 clinical-grid -z-10"
+        style={{
+          WebkitMaskImage: 'radial-gradient(125% 100% at 50% 0%, #000 35%, transparent 78%)',
+          maskImage: 'radial-gradient(125% 100% at 50% 0%, #000 35%, transparent 78%)',
+        }}
+      />
+      <span aria-hidden className="absolute -top-20 right-[-4%] w-[380px] h-[380px] rounded-full bg-teal-300/25 blur-[64px] -z-10" />
+      <span aria-hidden className="absolute top-1/3 left-[-8%] w-[300px] h-[300px] rounded-full bg-coral-200/20 blur-[64px] -z-10" />
       <div className="absolute inset-0 grain-overlay -z-10" />
 
       <div className="container-wide pt-20 pb-24 md:pt-28 md:pb-32">
@@ -184,7 +192,7 @@ function BrainVisual() {
       {/* Stat principal */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="text-center">
-          <div className="font-display text-7xl md:text-8xl font-medium text-teal-800 leading-none">
+          <div className="font-display text-7xl md:text-8xl font-medium text-teal-800 leading-none tabular">
             97<span className="text-coral-500">.</span>4
             <span className="text-3xl md:text-4xl align-top">%</span>
           </div>
