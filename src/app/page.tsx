@@ -7,7 +7,9 @@
 // ============================================================================
 
 import Link from 'next/link';
-import { ArrowRight, Brain, ClipboardCheck, MessageCircleHeart, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, ClipboardCheck, MessageCircleHeart, ShieldCheck, Sparkles } from 'lucide-react';
+
+import { BrandLogo } from '@/components/brand-logo';
 
 export default function LandingPage() {
   return (
@@ -31,10 +33,8 @@ function PathChooser() {
     <section className="border-y border-bone-200 bg-white py-16">
       <div className="container-wide">
         <div className="text-center max-w-xl mx-auto mb-10">
-          <span className="text-xs font-mono uppercase tracking-widest text-coral-700">
-            ¿Qué deseas hacer?
-          </span>
-          <h2 className="font-display text-3xl md:text-4xl mt-3 tracking-tightest text-ink">
+          <span className="eyebrow-coral">¿Qué deseas hacer?</span>
+          <h2 className="font-display text-3xl md:text-4xl mt-4 tracking-tightest text-ink">
             Elige tu camino
           </h2>
         </div>
@@ -80,15 +80,10 @@ function PathChooser() {
 // ============================================================================
 function Header() {
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-md bg-bone-50/80 border-b border-bone-200">
+    <header className="sticky top-0 z-50 backdrop-blur-md bg-bone-50/70 border-b border-bone-200/80">
       <div className="container-wide flex items-center justify-between h-16">
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-9 h-9 rounded-xl bg-teal-700 flex items-center justify-center text-bone-50 group-hover:bg-teal-800 transition-colors">
-            <Brain size={18} strokeWidth={2.5} />
-          </div>
-          <span className="font-display text-xl tracking-tightest font-medium">
-            NeuroAlert
-          </span>
+        <Link href="/" className="group">
+          <BrandLogo size="md" />
         </Link>
 
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-ink-soft">
@@ -123,8 +118,9 @@ function Header() {
 function Hero() {
   return (
     <section className="relative overflow-hidden">
-      {/* Fondo editorial con gradiente teal */}
+      {/* Fondo editorial con gradiente teal + rejilla clínica tenue */}
       <div className="absolute inset-0 bg-gradient-to-br from-bone-50 via-teal-50/30 to-bone-100 -z-10" />
+      <div className="absolute inset-0 clinical-grid -z-10" />
       <div className="absolute inset-0 grain-overlay -z-10" />
 
       <div className="container-wide pt-20 pb-24 md:pt-28 md:pb-32">
@@ -222,16 +218,19 @@ function BrainVisual() {
 // ============================================================================
 function ProblemSection() {
   return (
-    <section className="border-y border-bone-200 bg-white py-20">
-      <div className="container-wide">
+    <section className="panel-darker py-24">
+      {/* Aurora a la deriva — la firma de "Luz Clínica" */}
+      <span aria-hidden className="aurora aurora--teal w-[420px] h-[420px] -top-32 right-[6%]" />
+      <span aria-hidden className="aurora aurora--coral w-[320px] h-[320px] -bottom-32 left-[10%]" />
+      <div className="absolute inset-0 grain-overlay opacity-40" />
+
+      <div className="container-wide relative">
         <div className="max-w-3xl">
-          <span className="text-xs font-mono uppercase tracking-widest text-coral-700">
-            El problema
-          </span>
-          <h2 className="font-display text-4xl md:text-5xl mt-3 leading-tight text-ink">
+          <span className="eyebrow text-coral-300">El problema</span>
+          <h2 className="font-display text-4xl md:text-5xl mt-4 leading-tight text-bone-50">
             La ventana crítica de
             <br />
-            <span className="italic font-light text-teal-700">18 meses a 3 años</span>
+            <span className="italic font-light text-teal-200">18 meses a 3 años</span>
             <br />
             se está perdiendo.
           </h2>
@@ -261,12 +260,12 @@ function ProblemSection() {
 
 function Stat({ number, unit, description }: { number: string; unit: string; description: string }) {
   return (
-    <div className="border-l-2 border-teal-700 pl-6">
-      <div className="font-display text-5xl text-teal-800 leading-none">
+    <div className="border-l-2 border-teal-400/50 pl-6">
+      <div className="font-display text-5xl text-bone-50 leading-none tabular">
         {number}
-        <span className="text-base text-ink-mute ml-2 font-sans">{unit}</span>
+        <span className="text-base text-teal-200/80 ml-2 font-sans">{unit}</span>
       </div>
-      <p className="mt-4 text-sm leading-relaxed text-ink-soft">{description}</p>
+      <p className="mt-4 text-sm leading-relaxed text-bone-200/80">{description}</p>
     </div>
   );
 }
@@ -279,10 +278,8 @@ function FeaturesSection() {
     <section className="py-20 bg-bone-50">
       <div className="container-wide">
         <div className="max-w-2xl mb-16">
-          <span className="text-xs font-mono uppercase tracking-widest text-teal-700">
-            La solución
-          </span>
-          <h2 className="font-display text-4xl md:text-5xl mt-3 leading-tight">
+          <span className="eyebrow">La solución</span>
+          <h2 className="font-display text-4xl md:text-5xl mt-4 leading-tight">
             Tres puertas hacia el diagnóstico oportuno.
           </h2>
         </div>
@@ -344,8 +341,10 @@ function FeatureCard({
 // ============================================================================
 function CTASection() {
   return (
-    <section className="py-24 bg-teal-900 text-bone-50 relative overflow-hidden">
-      <div className="absolute inset-0 grain-overlay opacity-50" />
+    <section className="panel-darker py-24">
+      <span aria-hidden className="aurora aurora--teal w-[380px] h-[380px] -top-28 left-[8%]" />
+      <span aria-hidden className="aurora aurora--coral w-[300px] h-[300px] -bottom-28 right-[10%]" />
+      <div className="absolute inset-0 grain-overlay opacity-40" />
 
       <div className="container-narrow text-center relative">
         <h2 className="font-display text-4xl md:text-6xl leading-tight mb-6">
@@ -374,11 +373,8 @@ function Footer() {
       <div className="container-wide">
         <div className="flex flex-col md:flex-row gap-6 justify-between text-sm text-ink-mute">
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-lg bg-teal-700 flex items-center justify-center text-bone-50">
-                <Brain size={14} strokeWidth={2.5} />
-              </div>
-              <span className="font-display text-base font-medium text-ink">NeuroAlert</span>
+            <div className="mb-3">
+              <BrandLogo size="sm" />
             </div>
             <p className="text-xs max-w-md leading-relaxed">
               Plataforma educativa sin fines diagnósticos. Para diagnóstico oficial,

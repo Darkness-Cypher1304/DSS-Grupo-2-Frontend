@@ -9,17 +9,16 @@
 // ============================================================================
 
 import Link from 'next/link';
-import { ArrowRight, Brain } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+
+import { BrandLogo } from '@/components/brand-logo';
 
 export function PublicHeader() {
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-md bg-bone-50/80 border-b border-bone-200">
+    <header className="sticky top-0 z-50 backdrop-blur-md bg-bone-50/70 border-b border-bone-200/80">
       <div className="container-wide flex items-center justify-between h-16">
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-9 h-9 rounded-xl bg-teal-700 flex items-center justify-center text-bone-50 group-hover:bg-teal-800 transition-colors">
-            <Brain size={18} strokeWidth={2.5} />
-          </div>
-          <span className="font-display text-xl tracking-tightest font-medium">NeuroAlert</span>
+        <Link href="/" className="group">
+          <BrandLogo size="md" />
         </Link>
 
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-ink-soft">
@@ -54,11 +53,8 @@ export function PublicFooter() {
       <div className="container-wide">
         <div className="flex flex-col md:flex-row gap-6 justify-between text-sm text-ink-mute">
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-lg bg-teal-700 flex items-center justify-center text-bone-50">
-                <Brain size={14} strokeWidth={2.5} />
-              </div>
-              <span className="font-display text-base font-medium text-ink">NeuroAlert</span>
+            <div className="mb-3">
+              <BrandLogo size="sm" />
             </div>
             <p className="text-xs max-w-md leading-relaxed">
               Plataforma educativa sin fines diagnósticos. Para diagnóstico oficial,
