@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ArrowRight, Brain, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 
 import { apiGet } from '@/lib/api-client';
+import { PublicHeader, PublicFooter } from '@/components/public-chrome';
+import { Spotlight } from '@/components/motion';
 
 interface ContentItem {
   id: string;
@@ -28,42 +30,46 @@ export default function PublicArticlesPage() {
 
   return (
     <main className="min-h-screen bg-bone-50">
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-bone-50/80 border-b border-bone-200">
-        <div className="container-wide flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-teal-700 flex items-center justify-center text-bone-50">
-              <Brain size={18} strokeWidth={2.5} />
-            </div>
-            <span className="font-display text-xl tracking-tightest font-medium">NeuroAlert</span>
+      <PublicHeader />
+
+      {/* HERO — oscuro con foco de luz que sigue el cursor + aurora */}
+      <section className="canvas-dark relative overflow-hidden border-b border-white/10">
+        <Spotlight />
+        <span aria-hidden className="aurora aurora--teal w-[360px] h-[360px] -top-24 right-[6%]" />
+        <span aria-hidden className="aurora aurora--coral w-[260px] h-[260px] bottom-[-30%] left-[-4%]" />
+        <div
+          className="absolute inset-0 clinical-grid opacity-50"
+          style={{
+            WebkitMaskImage: 'radial-gradient(120% 90% at 50% 0%, #000 30%, transparent 76%)',
+            maskImage: 'radial-gradient(120% 90% at 50% 0%, #000 30%, transparent 76%)',
+          }}
+        />
+
+        <div className="container-wide relative z-10 pt-10 pb-16 md:pt-14 md:pb-20">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-sm text-teal-100/60 hover:text-teal-200 transition-colors"
+          >
+            <ArrowLeft size={16} /> Volver al inicio
           </Link>
-          <div className="flex items-center gap-2">
-            <Link href="/login" className="btn-ghost text-sm">Iniciar sesión</Link>
-            <Link href="/register" className="btn-primary text-sm">Crear cuenta</Link>
+
+          <div className="mt-12">
+            <span className="eyebrow text-coral-300">Recursos educativos</span>
           </div>
+          <h1 className="font-display text-5xl md:text-6xl tracking-tightest mt-4 mb-4 max-w-2xl leading-tight text-bone-50">
+            Información validada,
+            <br />
+            <span className="italic font-light text-teal-200">sin alarmismo.</span>
+          </h1>
+          <p className="text-teal-100/70 max-w-xl">
+            Artículos escritos por especialistas peruanos verificados. Revisados antes de
+            publicarse.
+          </p>
         </div>
-      </header>
+      </section>
 
+      {/* GRID — claro (lectura cómoda) */}
       <section className="container-wide py-16">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-sm text-ink-mute hover:text-teal-700 mb-6"
-        >
-          <ArrowLeft size={16} /> Volver al inicio
-        </Link>
-
-        <span className="text-xs font-mono uppercase tracking-widest text-coral-700">
-          Recursos educativos
-        </span>
-        <h1 className="font-display text-5xl md:text-6xl tracking-tightest mt-3 mb-4 max-w-2xl leading-tight">
-          Información validada,
-          <br />
-          <span className="italic font-light text-teal-700">sin alarmismo.</span>
-        </h1>
-        <p className="text-ink-mute max-w-xl mb-12">
-          Artículos escritos por especialistas peruanos verificados. Revisados antes de
-          publicarse.
-        </p>
-
         {isLoading ? (
           <div className="flex justify-center py-20">
             <Loader2 size={32} className="animate-spin text-teal-700" />
@@ -100,6 +106,8 @@ export default function PublicArticlesPage() {
           </div>
         )}
       </section>
+
+      <PublicFooter />
     </main>
   );
 }

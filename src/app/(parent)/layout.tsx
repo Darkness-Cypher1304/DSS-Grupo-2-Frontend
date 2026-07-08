@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Brain,
   Home,
   ClipboardList,
   BookOpen,
@@ -17,6 +16,7 @@ import {
 import { useAuth } from '@/lib/auth-context';
 import { NeuroLoader } from '@/components/neuro-loader';
 import { NotificationBell } from '@/components/notification-bell';
+import { BrandLogo } from '@/components/brand-logo';
 
 export default function ParentLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
@@ -37,11 +37,8 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
       {/* Sidebar */}
       <aside className="hidden md:flex flex-col w-64 border-r border-bone-200 bg-white">
         <div className="p-6">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-teal-700 flex items-center justify-center text-bone-50">
-              <Brain size={18} strokeWidth={2.5} />
-            </div>
-            <span className="font-display text-xl tracking-tightest font-medium">NeuroAlert</span>
+          <Link href="/" className="group">
+            <BrandLogo size="md" />
           </Link>
         </div>
 

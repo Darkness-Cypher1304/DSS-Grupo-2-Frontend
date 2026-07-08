@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 
 import { PublicHeader, PublicFooter } from '@/components/public-chrome';
+import { Spotlight } from '@/components/motion';
 
 export const metadata: Metadata = {
   title: 'Cómo funciona',
@@ -37,31 +38,38 @@ export default function AboutPage() {
     <main className="min-h-screen bg-bone-50">
       <PublicHeader />
 
-      {/* HERO */}
-      <section className="relative overflow-hidden border-b border-bone-200">
-        <div className="absolute inset-0 bg-gradient-to-br from-bone-50 via-teal-50/30 to-bone-100 -z-10" />
-        <div className="absolute inset-0 clinical-grid -z-10" />
-        <div className="absolute inset-0 grain-overlay -z-10" />
+      {/* HERO — oscuro con foco de luz que sigue el cursor + aurora */}
+      <section className="canvas-dark relative overflow-hidden border-b border-white/10">
+        <Spotlight />
+        <span aria-hidden className="aurora aurora--teal w-[380px] h-[380px] -top-24 right-[6%]" />
+        <span aria-hidden className="aurora aurora--coral w-[280px] h-[280px] bottom-[-30%] left-[-4%]" />
+        <div
+          className="absolute inset-0 clinical-grid opacity-50"
+          style={{
+            WebkitMaskImage: 'radial-gradient(120% 90% at 50% 0%, #000 30%, transparent 76%)',
+            maskImage: 'radial-gradient(120% 90% at 50% 0%, #000 30%, transparent 76%)',
+          }}
+        />
 
-        <div className="container-wide pt-10 pb-16 md:pt-14 md:pb-20">
+        <div className="container-wide relative z-10 pt-10 pb-16 md:pt-14 md:pb-20">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-sm text-ink-mute hover:text-teal-700 transition-colors"
+            className="inline-flex items-center gap-2 text-sm text-teal-100/60 hover:text-teal-200 transition-colors"
           >
             <ArrowLeft size={16} /> Volver al inicio
           </Link>
 
           <div className="mt-12">
-            <span className="eyebrow-coral">Cómo funciona</span>
+            <span className="eyebrow text-coral-300">Cómo funciona</span>
           </div>
-          <h1 className="font-display text-5xl md:text-6xl tracking-tightest mt-4 mb-5 max-w-3xl leading-[0.98]">
+          <h1 className="font-display text-5xl md:text-6xl tracking-tightest mt-4 mb-5 max-w-3xl leading-[0.98] text-bone-50">
             De una duda silenciosa a
             <br />
-            <span className="italic font-light text-teal-700">un siguiente paso claro.</span>
+            <span className="italic font-light text-teal-200">un siguiente paso claro.</span>
           </h1>
-          <p className="text-lg text-ink-mute max-w-2xl leading-relaxed">
+          <p className="text-lg text-teal-100/70 max-w-2xl leading-relaxed">
             NeuroAlert no diagnostica. Te da una orientación temprana, basada en evidencia,
-            durante la ventana crítica entre los <span className="font-semibold text-ink">18 meses y los 3 años</span>,
+            durante la ventana crítica entre los <span className="font-semibold text-bone-50">18 meses y los 3 años</span>,
             y te conecta con especialistas verificados para decidir qué hacer después.
           </p>
         </div>

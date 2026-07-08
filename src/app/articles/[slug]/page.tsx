@@ -4,9 +4,10 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
-import { ArrowLeft, Brain, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 
 import { apiGet } from '@/lib/api-client';
+import { PublicHeader } from '@/components/public-chrome';
 
 interface Article {
   id: string;
@@ -56,20 +57,7 @@ export default function ArticlePage() {
 
   return (
     <main className="min-h-screen bg-bone-50">
-      {/* Header simple */}
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-bone-50/80 border-b border-bone-200">
-        <div className="container-wide flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 rounded-xl bg-teal-700 flex items-center justify-center text-bone-50">
-              <Brain size={18} strokeWidth={2.5} />
-            </div>
-            <span className="font-display text-xl tracking-tightest font-medium">NeuroAlert</span>
-          </Link>
-          <Link href="/" className="text-sm text-ink-mute hover:text-teal-700">
-            ← Volver al inicio
-          </Link>
-        </div>
-      </header>
+      <PublicHeader />
 
       <article className="container-narrow py-16">
         <Link

@@ -28,7 +28,7 @@ export default function SpecialistLayout({ children }: { children: React.ReactNo
       <aside className="hidden md:flex flex-col w-64 border-r border-bone-200 bg-white">
         <div className="p-6">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-coral-600 flex items-center justify-center text-bone-50">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-coral-500 to-coral-700 flex items-center justify-center text-bone-50 ring-1 ring-inset ring-white/10 shadow-sm">
               <Stethoscope size={18} strokeWidth={2.5} />
             </div>
             <div>

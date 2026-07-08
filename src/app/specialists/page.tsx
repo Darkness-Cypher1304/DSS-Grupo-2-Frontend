@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 
 import { PublicHeader, PublicFooter } from '@/components/public-chrome';
+import { Spotlight } from '@/components/motion';
 
 export const metadata: Metadata = {
   title: 'Especialistas verificados',
@@ -41,31 +42,39 @@ export default function SpecialistsPage() {
     <main className="min-h-screen bg-bone-50">
       <PublicHeader />
 
-      {/* HERO */}
-      <section className="relative overflow-hidden border-b border-bone-200">
-        <div className="absolute inset-0 bg-gradient-to-br from-bone-50 via-teal-50/30 to-bone-100 -z-10" />
-        <div className="absolute inset-0 grain-overlay -z-10" />
+      {/* HERO — oscuro con foco de luz que sigue el cursor + aurora */}
+      <section className="canvas-dark relative overflow-hidden border-b border-white/10">
+        <Spotlight />
+        <span aria-hidden className="aurora aurora--teal w-[380px] h-[380px] -top-24 right-[6%]" />
+        <span aria-hidden className="aurora aurora--coral w-[280px] h-[280px] bottom-[-30%] left-[-4%]" />
+        <div
+          className="absolute inset-0 clinical-grid opacity-50"
+          style={{
+            WebkitMaskImage: 'radial-gradient(120% 90% at 50% 0%, #000 30%, transparent 76%)',
+            maskImage: 'radial-gradient(120% 90% at 50% 0%, #000 30%, transparent 76%)',
+          }}
+        />
 
-        <div className="container-wide pt-12 pb-16 md:pt-16 md:pb-20">
+        <div className="container-wide relative z-10 pt-12 pb-16 md:pt-16 md:pb-20">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-sm text-ink-mute hover:text-teal-700 mb-8 transition-colors"
+            className="inline-flex items-center gap-2 text-sm text-teal-100/60 hover:text-teal-200 transition-colors"
           >
             <ArrowLeft size={16} /> Volver al inicio
           </Link>
 
-          <span className="text-xs font-mono uppercase tracking-widest text-coral-700">
-            Especialistas verificados
-          </span>
-          <h1 className="font-display text-5xl md:text-6xl tracking-tightest mt-3 mb-5 max-w-3xl leading-[0.98]">
+          <div className="mt-12">
+            <span className="eyebrow text-coral-300">Especialistas verificados</span>
+          </div>
+          <h1 className="font-display text-5xl md:text-6xl tracking-tightest mt-4 mb-5 max-w-3xl leading-[0.98] text-bone-50">
             Profesionales reales,
             <br />
-            <span className="italic font-light text-teal-700">colegiatura verificada.</span>
+            <span className="italic font-light text-teal-200">colegiatura verificada.</span>
           </h1>
-          <p className="text-lg text-ink-mute max-w-2xl leading-relaxed">
+          <p className="text-lg text-teal-100/70 max-w-2xl leading-relaxed">
             En salud infantil, la confianza no se improvisa. Cada especialista de NeuroAlert es un
-            pediatra o psicólogo infantil cuya colegiatura (<span className="font-medium text-ink">CMP</span> o{' '}
-            <span className="font-medium text-ink">CPsP</span>) fue validada manualmente por nuestro
+            pediatra o psicólogo infantil cuya colegiatura (<span className="font-medium text-bone-50">CMP</span> o{' '}
+            <span className="font-medium text-bone-50">CPsP</span>) fue validada manualmente por nuestro
             equipo antes de poder atender a una sola familia.
           </p>
         </div>
@@ -178,8 +187,9 @@ export default function SpecialistsPage() {
       </section>
 
       {/* CTA FINAL */}
-      <section className="py-24 bg-teal-900 text-bone-50 relative overflow-hidden">
-        <div className="absolute inset-0 grain-overlay opacity-50" />
+      <section className="panel-darker py-24 relative overflow-hidden">
+        <span aria-hidden className="aurora aurora--teal w-[380px] h-[380px] -top-24 left-[8%]" />
+        <span aria-hidden className="aurora aurora--coral w-[300px] h-[300px] -bottom-24 right-[10%]" />
         <div className="container-narrow text-center relative">
           <h2 className="font-display text-3xl md:text-5xl leading-tight mb-6">
             ¿Tienes una duda sobre
