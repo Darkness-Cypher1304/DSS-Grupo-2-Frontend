@@ -40,20 +40,21 @@ export default function AboutPage() {
       {/* HERO */}
       <section className="relative overflow-hidden border-b border-bone-200">
         <div className="absolute inset-0 bg-gradient-to-br from-bone-50 via-teal-50/30 to-bone-100 -z-10" />
+        <div className="absolute inset-0 clinical-grid -z-10" />
         <div className="absolute inset-0 grain-overlay -z-10" />
 
-        <div className="container-wide pt-12 pb-16 md:pt-16 md:pb-20">
+        <div className="container-wide pt-10 pb-16 md:pt-14 md:pb-20">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-sm text-ink-mute hover:text-teal-700 mb-8 transition-colors"
+            className="inline-flex items-center gap-2 text-sm text-ink-mute hover:text-teal-700 transition-colors"
           >
             <ArrowLeft size={16} /> Volver al inicio
           </Link>
 
-          <span className="text-xs font-mono uppercase tracking-widest text-coral-700">
-            Cómo funciona
-          </span>
-          <h1 className="font-display text-5xl md:text-6xl tracking-tightest mt-3 mb-5 max-w-3xl leading-[0.98]">
+          <div className="mt-12">
+            <span className="eyebrow-coral">Cómo funciona</span>
+          </div>
+          <h1 className="font-display text-5xl md:text-6xl tracking-tightest mt-4 mb-5 max-w-3xl leading-[0.98]">
             De una duda silenciosa a
             <br />
             <span className="italic font-light text-teal-700">un siguiente paso claro.</span>
@@ -79,10 +80,8 @@ export default function AboutPage() {
       <section className="py-20">
         <div className="container-wide">
           <div className="max-w-2xl mb-14">
-            <span className="text-xs font-mono uppercase tracking-widest text-teal-700">
-              En 3 pasos
-            </span>
-            <h2 className="font-display text-4xl md:text-5xl mt-3 leading-tight">
+            <span className="eyebrow">En 3 pasos</span>
+            <h2 className="font-display text-4xl md:text-5xl mt-4 leading-tight">
               Cinco minutos hoy pueden cambiar años.
             </h2>
           </div>
@@ -114,10 +113,8 @@ export default function AboutPage() {
       <section className="py-20 bg-white border-y border-bone-200">
         <div className="container-wide">
           <div className="max-w-2xl mb-14">
-            <span className="text-xs font-mono uppercase tracking-widest text-coral-700">
-              Lo que encontrarás dentro
-            </span>
-            <h2 className="font-display text-4xl md:text-5xl mt-3 leading-tight">
+            <span className="eyebrow-coral">Lo que encontrarás dentro</span>
+            <h2 className="font-display text-4xl md:text-5xl mt-4 leading-tight">
               Tres herramientas, una sola plataforma.
             </h2>
           </div>
@@ -149,10 +146,8 @@ export default function AboutPage() {
       <section className="py-20">
         <div className="container-wide">
           <div className="max-w-2xl mb-14">
-            <span className="text-xs font-mono uppercase tracking-widest text-teal-700">
-              Tu confianza, por diseño
-            </span>
-            <h2 className="font-display text-4xl md:text-5xl mt-3 leading-tight">
+            <span className="eyebrow">Tu confianza, por diseño</span>
+            <h2 className="font-display text-4xl md:text-5xl mt-4 leading-tight">
               Construido como software seguro.
             </h2>
           </div>
@@ -183,12 +178,12 @@ export default function AboutPage() {
       </section>
 
       {/* DISCLAIMER + CTA */}
-      <section className="py-24 bg-teal-900 text-bone-50 relative overflow-hidden">
-        <div className="absolute inset-0 grain-overlay opacity-50" />
+      <section className="panel-darker py-24">
+        <span aria-hidden className="aurora aurora--teal w-[380px] h-[380px] -top-28 left-[8%]" />
+        <span aria-hidden className="aurora aurora--coral w-[300px] h-[300px] -bottom-28 right-[10%]" />
+        <div className="absolute inset-0 grain-overlay opacity-40" />
         <div className="container-narrow text-center relative">
-          <p className="text-xs font-mono uppercase tracking-widest text-coral-300 mb-4">
-            Importante
-          </p>
+          <p className="eyebrow text-coral-300 mb-4">Importante</p>
           <h2 className="font-display text-3xl md:text-5xl leading-tight mb-6">
             NeuroAlert es una guía,
             <br />

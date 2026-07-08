@@ -27,6 +27,7 @@
   h1, h2, h3, h4 {
     @apply font-display tracking-tightest;
     font-feature-settings: 'ss01', 'liga';
+    text-wrap: balance;
   }
 
   /* Selección de texto en color marca */
@@ -54,37 +55,58 @@
   *:focus-visible {
     @apply outline-none ring-2 ring-teal-500 ring-offset-2 ring-offset-bone-50;
   }
+
+  /* Cifras alineadas (estadísticas, montos, contadores) */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 @layer components {
   /* ========================================================================
-     BOTONES
+     EYEBROW — etiqueta superior de sección (mono, versalita)
+     Centraliza el patrón que las páginas repetían a mano, con un espaciado
+     inferior consistente para que la jerarquía respire igual en todo el sitio.
+     ======================================================================== */
+  .eyebrow {
+    @apply inline-block font-mono text-xs uppercase tracking-widest text-teal-700;
+  }
+  .eyebrow-coral { @apply eyebrow text-coral-700; }
+
+  /* ========================================================================
+     BOTONES — evolución Luz Clínica: teal más profundo, transición suave,
+     leve elevación al hover para dar sensación de producto.
      ======================================================================== */
   .btn {
     @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-primary {
-    @apply btn bg-teal-700 text-bone-50 hover:bg-teal-800 active:scale-[0.98] shadow-sm hover:shadow-md;
+    @apply btn bg-teal-800 text-bone-50 hover:bg-teal-900 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] shadow-sm hover:shadow-lg hover:shadow-teal-900/20;
   }
 
   .btn-secondary {
-    @apply btn bg-bone-100 text-teal-800 border border-bone-300 hover:bg-bone-200 active:scale-[0.98];
+    @apply btn bg-white text-teal-800 border border-bone-300 hover:border-teal-300 hover:bg-bone-50 hover:-translate-y-0.5 active:translate-y-0;
   }
 
   .btn-coral {
-    @apply btn bg-coral-500 text-white hover:bg-coral-600 active:scale-[0.98] shadow-sm hover:shadow-md;
+    @apply btn bg-coral-500 text-white hover:bg-coral-600 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] shadow-sm hover:shadow-lg hover:shadow-coral-900/20;
   }
 
   .btn-ghost {
-    @apply btn text-teal-800 hover:bg-bone-100;
+    @apply btn text-teal-800 hover:bg-teal-50;
+  }
+
+  /* Botón sobre fondos oscuros (paneles teal) */
+  .btn-on-dark {
+    @apply btn text-bone-50 border border-bone-50/25 hover:bg-bone-50/10 hover:border-bone-50/40;
   }
 
   /* ========================================================================
      INPUTS
      ======================================================================== */
   .input {
-    @apply w-full px-4 py-2.5 rounded-xl border border-bone-300 bg-bone-50 text-ink placeholder:text-ink-fade focus:border-teal-500 focus:bg-white transition-colors;
+    @apply w-full px-4 py-2.5 rounded-xl border border-bone-300 bg-white text-ink placeholder:text-ink-fade focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:bg-white transition-all;
   }
 
   .label {
@@ -92,14 +114,31 @@
   }
 
   /* ========================================================================
-     CARDS
+     CARDS — borde más fino, sombra más suave y elevación al hover
      ======================================================================== */
   .card {
-    @apply bg-white rounded-2xl border border-bone-200 p-6 transition-shadow hover:shadow-md;
+    @apply bg-white rounded-2xl border border-bone-200 p-6 transition-all duration-200 hover:shadow-lg hover:shadow-teal-900/5 hover:-translate-y-0.5 hover:border-bone-300;
   }
 
   .card-clinical {
-    @apply card border-teal-100 bg-gradient-to-br from-white to-teal-50/40;
+    @apply card border-teal-100 bg-gradient-to-br from-white to-teal-50/50;
+  }
+
+  /* Tarjeta estática (sin elevación al hover), para grillas densas */
+  .card-flat {
+    @apply bg-white rounded-2xl border border-bone-200 p-6;
+  }
+
+  /* ========================================================================
+     PANEL OSCURO — la firma de "Luz Clínica": bloques teal profundo con
+     aurora a la deriva que alternan con las secciones claras.
+     ======================================================================== */
+  .panel-dark {
+    @apply relative overflow-hidden bg-teal-900 text-bone-50;
+  }
+  .panel-darker {
+    @apply relative overflow-hidden text-bone-50;
+    background: radial-gradient(130% 120% at 50% -10%, #123c38 0%, #0f2e2c 46%, #071917 100%);
   }
 
   /* ========================================================================
@@ -111,6 +150,11 @@
 
   .container-wide {
     @apply max-w-6xl mx-auto px-6;
+  }
+
+  /* Filete fino de marca (separadores, subrayados de acento) */
+  .hairline {
+    @apply h-px w-full bg-gradient-to-r from-transparent via-bone-300 to-transparent;
   }
 
   /* Badge de estado */
@@ -125,6 +169,34 @@
   .gradient-text {
     @apply bg-gradient-to-br from-teal-700 via-teal-600 to-coral-600 bg-clip-text text-transparent;
   }
+}
+
+/* ==========================================================================
+   AURORA — manchas de luz a la deriva para los paneles oscuros de "Luz
+   Clínica". Se colocan como <span class="aurora aurora--teal" /> dentro de un
+   contenedor con overflow-hidden. Puramente decorativas (aria-hidden).
+   ========================================================================== */
+.aurora {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(64px);
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform;
+}
+.aurora--teal { background: #2f8e86; opacity: 0.42; animation: auroraDrift 16s ease-in-out infinite; }
+.aurora--coral { background: #e35a3e; opacity: 0.20; animation: auroraDrift 20s ease-in-out infinite reverse; }
+.aurora--mint { background: #6fd6cf; opacity: 0.28; animation: auroraDrift 22s ease-in-out infinite; }
+
+@keyframes auroraDrift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(18px, -14px, 0) scale(1.16); }
+}
+
+/* Rejilla clínica muy tenue para heros claros (columnas de 72px) */
+.clinical-grid {
+  background-image: linear-gradient(90deg, rgba(35, 84, 82, 0.045) 1px, transparent 1px);
+  background-size: 72px 100%;
 }
 
 /* ==========================================================================
@@ -179,6 +251,9 @@
     animation: none;
   }
   .skeleton::after {
+    animation: none;
+  }
+  .aurora {
     animation: none;
   }
 }
