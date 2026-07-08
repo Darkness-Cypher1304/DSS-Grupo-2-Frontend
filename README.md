@@ -32,7 +32,12 @@ src/
     (admin)/               usuarios, solicitudes, contenido, bajas
     about/ articles/ specialists/   páginas públicas
     layout.tsx / template.tsx       layout global y transiciones de ruta
-  components/              UI reutilizable (loader, campana de notificaciones, etc.)
+  components/              UI reutilizable:
+    brand-logo.tsx         marca (fuente única del logo; variante onDark)
+    motion.tsx             movimiento (Spotlight/Reveal/CountUp)
+    neuro-loader.tsx       loader de marca ("señal neuronal")
+    notification-bell.tsx  campana de notificaciones (polling)
+    public-chrome.tsx      header/footer de las páginas públicas
   lib/
     api-client.ts          cliente Axios (Bearer + refresh automático en 401)
     auth-context.tsx       contexto de autenticación (login/register/logout/refresh)
@@ -45,6 +50,29 @@ tests/                     (hermana de src/ — ver sección «Testing»)
   mocks/ fixtures/ helpers/ setup/   dobles, datos, utilidades y arranque de tests
   e2e/                     reservado para Playwright (fase futura)
 ```
+
+---
+
+## Diseño y sistema visual
+
+La interfaz sigue la dirección **"Aurora Prisma"**: el **sitio público** usa un
+tema **oscuro premium** (lienzo teal profundo, superficies de vidrio, aurora a la
+deriva y un **foco de luz que sigue el cursor**), **alternando** secciones oscuras
+y claras para dar variedad; la **app logueada** se mantiene **clara/clínica** para
+la legibilidad de formularios, tablas y datos.
+
+- **Paleta y tipografía** (`tailwind.config.ts`): teal / coral / hueso (`bone`) +
+  tinta (`ink`); display **Fraunces** (serif) y cuerpo **Geist**.
+- **Sistema de clases** (`src/app/globals.css`): `.canvas-dark` / `.panel-darker`
+  (lienzos oscuros), `.glass` / `.glass-card` (vidrio esmerilado), `.aurora*`
+  (resplandores a la deriva), `.btn-primary` / `.btn-aqua` / `.btn-outline-dark`,
+  `.card` / `.card-clinical`, `.eyebrow`, `.clinical-grid`, `.tabular`.
+- **Movimiento** (`src/components/motion.tsx`): `Spotlight` (foco que sigue el
+  cursor), `Reveal` (aparición al hacer scroll) y `CountUp` (cifras animadas). Con
+  **degradación grácil** —el contenido es visible aunque el JS no hidrate— y
+  respeto de `prefers-reduced-motion`.
+- **Marca** (`src/components/brand-logo.tsx`): fuente única del logo (`BrandLogo` /
+  `BrandGlyph`), con variante para fondos oscuros (`onDark`).
 
 ---
 
